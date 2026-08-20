@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback, useMemo, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -16,6 +16,7 @@ type PokeTarget = {
   gradient: readonly [string, string];
   dnd: boolean;
   statusText: string;
+  kind: 'friend' | 'group';
 };
 
 export default function PokeScreen() {
@@ -23,13 +24,24 @@ export default function PokeScreen() {
   const allGroups = useAppStore((s) => s.groups);
   const pokedIds = useAppStore((s) => s.pokedIds);
   const poke = useAppStore((s) => s.poke);
+  const refreshFriends = useAppStore((s) => s.refreshFriends);
+  const refreshGroups = useAppStore((s) => s.refreshGroups);
+  const authStatus = useAppStore((s) => s.authStatus);
 
   const [toastMsg, setToastMsg] = useState('');
   const [toastVisible, setToastVisible] = useState(false);
 
+  useFocusEffect(
+    useCallback(() => {
+      if (authStatus !== 'ready') return;
+      refreshFriends();
+      refreshGroups();
+    }, [authStatus, refreshFriends, refreshGroups])
+  );
+
   const targets: PokeTarget[] = useMemo(
     () => [
-      ...friends.map((f) => ({ id: f.id, name: f.name, gradient: f.avatarGradient, dnd: f.dnd, statusText: f.statusText })),
+      ...friends.map((f) => ({ id: f.id, name: f.name, gradient: f.avatarGradient, dnd: f.dnd, statusText: f.statusText, kind: 'friend' as const })),
       ...allGroups
         .filter((g) => g.kind === 'group')
         .map((g) => ({
@@ -38,16 +50,19 @@ export default function PokeScreen() {
           gradient: ['#6B7FC7', '#3A2761'] as const,
           dnd: false,
           statusText: `그룹 · ${g.memberCount}명`,
+          kind: 'group' as const,
         })),
     ],
     [friends, allGroups]
   );
 
-  function handlePoke(target: PokeTarget) {
-    poke(target.id);
-    setToastMsg(
-      target.dnd ? `${target.name}은(는) 방해금지 중이에요 · 알림이 지연돼요` : `${target.name}에게 '지금 뭐해?'를 보냈어요`
-    );
+  async function handlePoke(target: PokeTarget) {
+    try {
+      const delayed = await poke(target.kind === 'friend' ? { userId: target.id } : { groupId: target.id });
+      setToastMsg(delayed ? `${target.name}은(는) 방해금지 중이에요 · 알림이 지연돼요` : `${target.name}에게 '지금 뭐해?'를 보냈어요`);
+    } catch {
+      setToastMsg('찌르기에 실패했어요. 다시 시도해주세요');
+    }
     setToastVisible(true);
     setTimeout(() => setToastVisible(false), 2200);
   }
@@ -66,6 +81,11 @@ export default function PokeScreen() {
           data={targets}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.list}
+          ListEmptyComponent={
+            <View style={styles.empty}>
+              <Text style={styles.emptyText}>아직 친구가 없어요{'\n'}오른쪽 위 + 버튼으로 초대해보세요</Text>
+            </View>
+          }
           renderItem={({ item }) => {
             const isPoked = pokedIds.includes(item.id);
             return (
@@ -98,7 +118,9 @@ const styles = StyleSheet.create({
   nav: { paddingHorizontal: 18, paddingTop: 14, paddingBottom: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   navTitle: { fontSize: 18, fontWeight: '800', color: colors.textHi },
   navIcon: { width: 32, height: 32, borderRadius: 10, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },
-  list: { paddingHorizontal: 16, paddingBottom: 24, gap: 8 },
+  list: { paddingHorizontal: 16, paddingBottom: 24, gap: 8, flexGrow: 1 },
+  empty: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 80 },
+  emptyText: { color: colors.textDim, fontSize: 13, textAlign: 'center', lineHeight: 20 },
   row: {
     flexDirection: 'row',
     alignItems: 'center',

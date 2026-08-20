@@ -17,50 +17,53 @@ export interface Group {
   memberCount: number;
   dnd: boolean;
   subLabel: string;
-  friendId?: string; // for personal targets, links back to a Friend
+  friendId?: string | null;
 }
 
 export type SaveRequestStatus = 'none' | 'pending' | 'approved' | 'rejected';
 
+// One row per (photo, recipient) pair — flattened so both "받은 사진" and
+// "보낸 사진" render as simple cards, and a sender can approve/reject a
+// specific recipient's save request inline (targetUserId + photoId).
 export interface AlbumItem {
-  id: string;
+  id: string; // deliveryId
   direction: 'received' | 'sent';
+  photoId: string;
   peerName: string;
   caption: string;
-  gradient: AvatarGradient;
+  photoUrl: string;
   sentAt: number;
   expiresAt: number;
   saveStatus: SaveRequestStatus;
+  targetUserId?: string; // sent items only — who to approve/reject for
 }
 
 export interface InviteLink {
   code: string;
-  createdAt: number;
   expiresAt: number;
-  used: boolean;
-}
-
-export interface IncomingInvite {
-  id: string;
-  name: string;
-  suggestedGroupId: string;
 }
 
 export interface WidgetPhoto {
   senderName: string;
   caption: string;
   timeLabel: string;
-  gradient: AvatarGradient;
+  photoUrl: string;
 }
 
 export interface CapturedPhoto {
+  uri: string;
   takenAt: number;
-  gradient: AvatarGradient;
-  forFriendName?: string;
 }
 
 export interface DndSettings {
   enabled: boolean;
   scheduleEnabled: boolean;
-  scheduleLabel: string;
+  scheduleStart: string;
+  scheduleEnd: string;
+}
+
+export interface Me {
+  id: string;
+  displayName: string;
+  avatarGradient: AvatarGradient;
 }

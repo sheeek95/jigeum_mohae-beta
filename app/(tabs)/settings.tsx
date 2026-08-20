@@ -1,7 +1,10 @@
-import { useMemo } from 'react';
+import { useFocusEffect } from 'expo-router';
+import { useCallback, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { Avatar } from '../../src/components/Avatar';
+import { PromptModal } from '../../src/components/PromptModal';
 import { ScreenGradient } from '../../src/components/ScreenGradient';
 import { SectionLabel } from '../../src/components/SectionLabel';
 import { SwitchToggle } from '../../src/components/SwitchToggle';
@@ -9,11 +12,24 @@ import { useAppStore } from '../../src/store/useAppStore';
 import { colors, radius } from '../../src/theme/tokens';
 
 export default function SettingsScreen() {
+  const me = useAppStore((s) => s.me);
   const allGroups = useAppStore((s) => s.groups);
   const groups = useMemo(() => allGroups.filter((g) => g.kind === 'group'), [allGroups]);
   const dnd = useAppStore((s) => s.dnd);
-  const toggleDnd = useAppStore((s) => s.toggleDnd);
+  const setDnd = useAppStore((s) => s.setDnd);
   const addGroup = useAppStore((s) => s.addGroup);
+  const updateDisplayName = useAppStore((s) => s.updateDisplayName);
+  const refreshGroups = useAppStore((s) => s.refreshGroups);
+  const authStatus = useAppStore((s) => s.authStatus);
+
+  const [groupModal, setGroupModal] = useState(false);
+  const [nameModal, setNameModal] = useState(false);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (authStatus === 'ready') refreshGroups();
+    }, [authStatus, refreshGroups])
+  );
 
   return (
     <ScreenGradient glow="coral">
@@ -22,6 +38,16 @@ export default function SettingsScreen() {
           <View style={styles.nav}>
             <Text style={styles.navTitle}>설정</Text>
           </View>
+
+          {me && (
+            <Pressable style={styles.profileRow} onPress={() => setNameModal(true)}>
+              <Avatar gradient={me.avatarGradient} size={44} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.t1}>{me.displayName}</Text>
+                <Text style={styles.t2}>탭해서 이름 바꾸기</Text>
+              </View>
+            </Pressable>
+          )}
 
           <SectionLabel style={styles.sectionLabel}>그룹 관리</SectionLabel>
           <View style={styles.block}>
@@ -34,7 +60,7 @@ export default function SettingsScreen() {
                 <Text style={styles.manage}>관리 ›</Text>
               </View>
             ))}
-            <Pressable style={[styles.row, { borderBottomWidth: 0 }]} onPress={() => addGroup(`새 그룹 ${groups.length + 1}`)}>
+            <Pressable style={[styles.row, { borderBottomWidth: 0 }]} onPress={() => setGroupModal(true)}>
               <Text style={styles.t1}>+ 새 그룹 만들기</Text>
             </Pressable>
           </View>
@@ -46,14 +72,14 @@ export default function SettingsScreen() {
                 <Text style={styles.t1}>방해금지 모드</Text>
                 <Text style={styles.t2}>켜두면 친구에게도 표시돼요</Text>
               </View>
-              <SwitchToggle on={dnd.enabled} onToggle={toggleDnd} />
+              <SwitchToggle on={dnd.enabled} onToggle={() => setDnd({ enabled: !dnd.enabled })} />
             </View>
             <View style={[styles.row, { borderBottomWidth: 0 }]}>
               <View>
                 <Text style={styles.t1}>시간 자동 설정</Text>
-                <Text style={styles.t2}>{dnd.scheduleLabel}</Text>
+                <Text style={styles.t2}>매일 {dnd.scheduleStart} – {dnd.scheduleEnd}</Text>
               </View>
-              <Text style={styles.manage}>변경 ›</Text>
+              <SwitchToggle on={dnd.scheduleEnabled} onToggle={() => setDnd({ scheduleEnabled: !dnd.scheduleEnabled })} />
             </View>
           </View>
 
@@ -64,6 +90,27 @@ export default function SettingsScreen() {
             </Text>
           </View>
         </ScrollView>
+
+        <PromptModal
+          visible={groupModal}
+          title="새 그룹 이름"
+          placeholder="예: 우리끼리"
+          onCancel={() => setGroupModal(false)}
+          onConfirm={(name) => {
+            setGroupModal(false);
+            addGroup(name);
+          }}
+        />
+        <PromptModal
+          visible={nameModal}
+          title="내 이름"
+          initialValue={me?.displayName}
+          onCancel={() => setNameModal(false)}
+          onConfirm={(name) => {
+            setNameModal(false);
+            updateDisplayName(name);
+          }}
+        />
       </SafeAreaView>
     </ScreenGradient>
   );
@@ -72,6 +119,18 @@ export default function SettingsScreen() {
 const styles = StyleSheet.create({
   nav: { paddingHorizontal: 18, paddingTop: 14, paddingBottom: 6 },
   navTitle: { fontSize: 18, fontWeight: '800', color: colors.textHi },
+  profileRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginHorizontal: 16,
+    marginTop: 10,
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.line,
+    padding: 13,
+  },
   sectionLabel: { marginHorizontal: 20, marginTop: 14, marginBottom: 2 },
   block: {
     marginHorizontal: 16,

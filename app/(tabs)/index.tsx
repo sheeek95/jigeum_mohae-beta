@@ -1,6 +1,6 @@
-import { LinearGradient } from 'expo-linear-gradient';
-import { router } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { Image } from 'expo-image';
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback, useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -19,12 +19,25 @@ function useClock() {
 }
 
 const WEEKDAYS = ['일요일', '월요일', '화요일', '수요일', '목요일', '금요일', '토요일'];
+const POLL_MS = 6000;
 
 export default function HomeScreen() {
   const now = useClock();
-  const widgetMode = useAppStore((s) => s.widgetMode);
   const widgetPhoto = useAppStore((s) => s.widgetPhoto);
-  const toggleWidgetMode = useAppStore((s) => s.toggleWidgetMode);
+  const refreshWidget = useAppStore((s) => s.refreshWidget);
+  const authStatus = useAppStore((s) => s.authStatus);
+
+  // The real "위젯 실시간 노출" behavior — poll the backend for the latest
+  // shared photo while this screen is focused, same as a home-screen widget's
+  // periodic timeline refresh would.
+  useFocusEffect(
+    useCallback(() => {
+      if (authStatus !== 'ready') return;
+      refreshWidget();
+      const id = setInterval(refreshWidget, POLL_MS);
+      return () => clearInterval(id);
+    }, [authStatus, refreshWidget])
+  );
 
   const hh = now.getHours().toString().padStart(2, '0');
   const mm = now.getMinutes().toString().padStart(2, '0');
@@ -43,26 +56,28 @@ export default function HomeScreen() {
             <View style={styles.widgetTop}>
               <View style={styles.widgetTitleRow}>
                 <View style={styles.badgeDot} />
-                <Text style={styles.widgetTitle}>지금 모해 · 우리끼리</Text>
+                <Text style={styles.widgetTitle}>지금 모해</Text>
               </View>
-              <Pressable onPress={toggleWidgetMode} style={styles.widgetToggle}>
-                <Text style={styles.widgetToggleText}>상태 전환</Text>
+              <Pressable onPress={refreshWidget} style={styles.widgetToggle}>
+                <Text style={styles.widgetToggleText}>새로고침</Text>
               </Pressable>
             </View>
 
-            {widgetMode === 'waiting' ? (
+            {!widgetPhoto ? (
               <Pressable style={styles.waitingBox} onPress={() => router.push('/camera')}>
                 <PulseRing size={54} />
                 <Text style={styles.waitingTxt}>기다리는 중...</Text>
-                <Text style={styles.waitingSub}>탭하면 바로 촬영 · 민지가 찔렀어요</Text>
+                <Text style={styles.waitingSub}>탭하면 바로 촬영</Text>
               </Pressable>
             ) : (
-              <LinearGradient colors={widgetPhoto.gradient} style={styles.photoBox}>
+              <View style={styles.photoBox}>
+                <Image source={{ uri: widgetPhoto.photoUrl }} style={StyleSheet.absoluteFill} contentFit="cover" />
+                <View style={[StyleSheet.absoluteFill, styles.photoOverlay]} />
                 <Text style={styles.photoCap}>
                   {widgetPhoto.senderName} · {widgetPhoto.timeLabel}
                 </Text>
                 <Text style={styles.photoCapSmall}>&ldquo;{widgetPhoto.caption}&rdquo;</Text>
-              </LinearGradient>
+              </View>
             )}
           </View>
 
@@ -117,7 +132,8 @@ const styles = StyleSheet.create({
   },
   waitingTxt: { fontSize: 13, fontWeight: '700', color: colors.yellow },
   waitingSub: { fontSize: 10.5, color: colors.textDim },
-  photoBox: { flex: 1, minHeight: 170, borderRadius: 18, justifyContent: 'flex-end', padding: 12 },
+  photoBox: { flex: 1, minHeight: 170, borderRadius: 18, overflow: 'hidden', justifyContent: 'flex-end', padding: 12, backgroundColor: colors.surfaceHi },
+  photoOverlay: { backgroundColor: 'rgba(0,0,0,0.25)' },
   photoCap: { fontSize: 12, fontWeight: '600', color: '#fff' },
   photoCapSmall: { fontSize: 11, color: 'rgba(255,255,255,0.85)', marginTop: 2 },
   iconRow: { flexDirection: 'row', gap: 14, marginTop: 18, justifyContent: 'center' },

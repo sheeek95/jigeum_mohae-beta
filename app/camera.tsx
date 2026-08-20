@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { CameraView, useCameraPermissions } from 'expo-camera';
+import { File, Paths } from 'expo-file-system';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
@@ -9,9 +10,19 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { GhostButton, PrimaryButton } from '../src/components/Buttons';
 import { useAppStore } from '../src/store/useAppStore';
 import { colors } from '../src/theme/tokens';
+import { base64ToBytes } from '../src/utils/base64';
 
-const DEMO_PHOTO = 'demo';
-const CAPTURE_GRADIENT = ['#6B4B96', '#2C1E4A'] as const;
+// A real (if tiny) 1x1 PNG, used only when there's no camera to shoot with —
+// keeps the rest of the pipeline (preview, upload, server-side image
+// handling) exercising a genuine image file instead of a fake one.
+const PLACEHOLDER_PNG_BASE64 =
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=';
+
+function writeDemoPhoto(): string {
+  const file = new File(Paths.cache, `demo-${Date.now()}.png`);
+  file.write(base64ToBytes(PLACEHOLDER_PNG_BASE64));
+  return file.uri;
+}
 
 export default function CameraScreen() {
   const [permission, requestPermission] = useCameraPermissions();
@@ -39,9 +50,9 @@ export default function CameraScreen() {
     flashScreen();
     try {
       const photo = await cameraRef.current?.takePictureAsync({ quality: 0.6 });
-      setTimeout(() => setPhotoUri(photo?.uri ?? DEMO_PHOTO), 180);
+      setTimeout(() => setPhotoUri(photo?.uri ?? writeDemoPhoto()), 180);
     } catch {
-      setTimeout(() => setPhotoUri(DEMO_PHOTO), 180);
+      setTimeout(() => setPhotoUri(writeDemoPhoto()), 180);
     }
   }
 
@@ -50,7 +61,8 @@ export default function CameraScreen() {
   }
 
   function confirmAndShare() {
-    setCapturedPhoto({ takenAt: Date.now(), gradient: CAPTURE_GRADIENT });
+    if (!photoUri) return;
+    setCapturedPhoto({ uri: photoUri, takenAt: Date.now() });
     router.replace('/share');
   }
 
@@ -69,7 +81,7 @@ export default function CameraScreen() {
             <GhostButton onPress={() => router.back()}>닫기</GhostButton>
             <PrimaryButton onPress={requestPermission}>권한 허용</PrimaryButton>
           </View>
-          <Pressable onPress={() => setPhotoUri(DEMO_PHOTO)} hitSlop={8}>
+          <Pressable onPress={() => setPhotoUri(writeDemoPhoto())} hitSlop={8}>
             <Text style={styles.demoLink}>카메라 없이 데모로 계속하기</Text>
           </Pressable>
         </SafeAreaView>
@@ -84,7 +96,7 @@ export default function CameraScreen() {
           <CameraView ref={cameraRef} style={StyleSheet.absoluteFill} facing="back" />
           <SafeAreaView style={styles.headerRow} edges={['top']}>
             <View style={styles.pill}>
-              <Text style={styles.pillText}>민지가 기다리는 중</Text>
+              <Text style={styles.pillText}>지금 이 순간을 공유해보세요</Text>
             </View>
             <Pressable style={styles.pillTouchable} onPress={() => router.back()}>
               <Text style={styles.pillText}>✕</Text>
@@ -97,11 +109,7 @@ export default function CameraScreen() {
         </>
       ) : (
         <View style={styles.previewWrap}>
-          {photoUri === DEMO_PHOTO ? (
-            <View style={[styles.previewPhoto, { backgroundColor: '#3A2761' }]} />
-          ) : (
-            <Image source={{ uri: photoUri }} style={styles.previewPhoto} contentFit="cover" />
-          )}
+          <Image source={{ uri: photoUri }} style={styles.previewPhoto} contentFit="cover" />
           <SafeAreaView edges={['bottom']} style={styles.previewActions}>
             <GhostButton onPress={retake}>다시 찍기</GhostButton>
             <PrimaryButton onPress={confirmAndShare}>확인 · 공유하기</PrimaryButton>
@@ -139,7 +147,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.15)',
   },
   previewWrap: { flex: 1 },
-  previewPhoto: { flex: 1 },
+  previewPhoto: { flex: 1, backgroundColor: '#3A2761' },
   previewActions: { flexDirection: 'row', gap: 12, padding: 18, backgroundColor: '#0A0714' },
   permissionWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32, gap: 6 },
   permissionTitle: { color: colors.textHi, fontSize: 16, fontWeight: '800', marginTop: 12 },

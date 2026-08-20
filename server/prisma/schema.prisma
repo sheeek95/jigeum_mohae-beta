@@ -1,0 +1,158 @@
+// 지금 모해 — backend data model.
+// Dev uses SQLite (zero setup); swap `provider`/`url` to postgresql for prod,
+// the schema itself is Postgres-compatible (no SQLite-only features used).
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// A physical group has a hard cap on exposed members (spec: 8-10 per group).
+// Enforced in application code (routes/groups.ts), not the DB layer.
+model User {
+  id           String   @id @default(cuid())
+  deviceId     String   @unique
+  displayName  String
+  avatarStart  String   @default("#FF9AA6")
+  avatarEnd    String   @default("#8A6BC7")
+  createdAt    DateTime @default(now())
+
+  dndSetting        DndSetting?
+  sentInvites       InviteLink[]      @relation("InviteCreatedBy")
+  usedInvite        InviteLink?       @relation("InviteUsedBy")
+  friendshipsA      Friendship[]      @relation("FriendshipUserA")
+  friendshipsB      Friendship[]      @relation("FriendshipUserB")
+  ownedGroups       Group[]           @relation("GroupOwner")
+  personalGroupOf   Group[]           @relation("GroupFriendTarget")
+  groupMemberships  GroupMember[]
+  pokesSent         Poke[]            @relation("PokeFrom")
+  pokesReceived     Poke[]            @relation("PokeTo")
+  photosSent        Photo[]           @relation("PhotoSender")
+  photoDeliveries   PhotoDelivery[]
+}
+
+model DndSetting {
+  id              String  @id @default(cuid())
+  userId          String  @unique
+  user            User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  enabled         Boolean @default(false)
+  scheduleEnabled Boolean @default(false)
+  scheduleStart   String  @default("23:00") // "HH:mm", local device time
+  scheduleEnd     String  @default("08:00")
+}
+
+// 7-day, single-use invite link. Accepting it creates an immediate Friendship
+// (the mockup's incoming-invite screen has a single accept action, so there is
+// no separate double-confirmation step — the inviter already consented by
+// generating and sharing the link).
+model InviteLink {
+  id          String    @id @default(cuid())
+  code        String    @unique
+  createdById String
+  createdBy   User      @relation("InviteCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+  createdAt   DateTime  @default(now())
+  expiresAt   DateTime
+  usedById    String?   @unique
+  usedBy      User?     @relation("InviteUsedBy", fields: [usedById], references: [id])
+  usedAt      DateTime?
+}
+
+model Friendship {
+  id        String   @id @default(cuid())
+  userAId   String
+  userBId   String
+  userA     User     @relation("FriendshipUserA", fields: [userAId], references: [id], onDelete: Cascade)
+  userB     User     @relation("FriendshipUserB", fields: [userBId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userAId, userBId])
+}
+
+enum GroupKind {
+  GROUP
+  PERSONAL
+}
+
+model Group {
+  id           String        @id @default(cuid())
+  ownerId      String
+  owner        User          @relation("GroupOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  name         String
+  kind         GroupKind     @default(GROUP)
+  // Only set for kind=PERSONAL: the single friend this share-target wraps,
+  // auto-created on both sides when an invite is accepted. GROUP-kind
+  // membership instead goes through GroupMember.
+  friendUserId String?
+  friendUser   User?         @relation("GroupFriendTarget", fields: [friendUserId], references: [id])
+  createdAt    DateTime      @default(now())
+  members      GroupMember[]
+  photos       Photo[]
+}
+
+model GroupMember {
+  id      String  @id @default(cuid())
+  groupId String
+  group   Group   @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  userId  String
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, userId])
+}
+
+model Poke {
+  id           String   @id @default(cuid())
+  fromUserId   String
+  fromUser     User     @relation("PokeFrom", fields: [fromUserId], references: [id], onDelete: Cascade)
+  toUserId     String
+  toUser       User     @relation("PokeTo", fields: [toUserId], references: [id], onDelete: Cascade)
+  createdAt    DateTime @default(now())
+  // true when the recipient was in DND at send time — client shows
+  // "방해금지 중" instead of a normal delivered state (spec #12).
+  delayedByDnd Boolean  @default(false)
+}
+
+enum SaveStatus {
+  NONE
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+// One Photo per send action; fan-out to each recipient is tracked in
+// PhotoDelivery so the sender's 24h-TTL clock and save-approval are shared
+// across everyone who received it, while each recipient can independently
+// request a save.
+model Photo {
+  id          String          @id @default(cuid())
+  senderId    String
+  sender      User            @relation("PhotoSender", fields: [senderId], references: [id], onDelete: Cascade)
+  groupId     String?
+  group       Group?          @relation(fields: [groupId], references: [id])
+  storageKey  String
+  caption     String          @default("")
+  createdAt   DateTime        @default(now())
+  expiresAt   DateTime
+  deletedAt   DateTime?
+  deliveries  PhotoDelivery[]
+}
+
+// Per-recipient view + save-request state (spec #22: requester asks, sender
+// approves, approval saves to BOTH albums).
+model PhotoDelivery {
+  id         String     @id @default(cuid())
+  photoId    String
+  photo      Photo      @relation(fields: [photoId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  saveStatus SaveStatus @default(NONE)
+  savedAt    DateTime?
+  // Set by the TTL job when this delivery's 24h window passed without an
+  // APPROVED save — hides it from that recipient while the underlying Photo
+  // (and any other recipient's APPROVED copy) lives on.
+  expiredAt  DateTime?
+
+  @@unique([photoId, userId])
+}

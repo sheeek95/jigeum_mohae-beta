@@ -1,14 +1,24 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { File } from 'expo-file-system';
+import { Platform } from 'react-native';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
-import {
-  initialAlbum,
-  initialFriends,
-  initialGroups,
-  initialInviteLink,
-  initialWidgetPhoto,
-} from './dummyData';
+import { api, API_URL, ApiError, resolveMediaUrl, setAuthToken } from '../api/client';
+import { getOrCreateDeviceId } from '../api/identity';
+import { syncAndroidWidget } from '../widgets/syncAndroidWidget';
+import { requestIosWidgetReload, syncIosWidgetCredentials } from '../widgets/syncIosWidget';
+import type {
+  ApiDnd,
+  ApiFriend,
+  ApiGroup,
+  ApiInvite,
+  ApiInvitePreview,
+  ApiReceivedPhoto,
+  ApiSentPhoto,
+  ApiUser,
+  ApiWidgetPhoto,
+} from '../api/types';
 import type {
   AlbumItem,
   AvatarGradient,
@@ -16,202 +26,322 @@ import type {
   DndSettings,
   Friend,
   Group,
-  IncomingInvite,
   InviteLink,
+  Me,
   SaveRequestStatus,
   WidgetPhoto,
 } from './types';
 
-const HOUR = 60 * 60 * 1000;
-const SAVE_REQUEST_DEMO_DELAY = 2200;
+type AuthStatus = 'idle' | 'loading' | 'ready' | 'error';
 
-type WidgetMode = 'waiting' | 'photo';
+// Module-level (not store state) so every caller shares one in-flight
+// promise regardless of render timing — see bootstrap() below.
+let bootstrapPromise: Promise<void> | null = null;
 
 interface AppState {
   hasOnboarded: boolean;
+  authStatus: AuthStatus;
+  authError: string | null;
+  me: Me | null;
+
   friends: Friend[];
   groups: Group[];
-  album: AlbumItem[];
-  widgetMode: WidgetMode;
-  widgetPhoto: WidgetPhoto;
-  inviteLink: InviteLink;
-  incomingInvites: IncomingInvite[];
-  capturedPhoto: CapturedPhoto | null;
   dnd: DndSettings;
+  inviteLink: InviteLink | null;
+  pendingInvite: ApiInvitePreview | null;
+  widgetPhoto: WidgetPhoto | null;
+  album: AlbumItem[];
+  capturedPhoto: CapturedPhoto | null;
   pokedIds: string[];
 
   completeOnboarding: () => void;
-  poke: (id: string) => void;
-  toggleWidgetMode: () => void;
+  bootstrap: () => Promise<void>;
+  refreshAll: () => Promise<void>;
+  refreshFriends: () => Promise<void>;
+  refreshGroups: () => Promise<void>;
+  refreshAlbum: () => Promise<void>;
+  refreshWidget: () => Promise<void>;
+  refreshInvite: () => Promise<void>;
+
+  poke: (target: { userId: string } | { groupId: string }) => Promise<boolean>;
+  loadInviteByCode: (code: string) => Promise<void>;
+  acceptInvite: (code: string, groupIds?: string[]) => Promise<void>;
+  clearPendingInvite: () => void;
+
   setCapturedPhoto: (photo: CapturedPhoto | null) => void;
-  shareToTargets: (targetIds: string[]) => void;
-  requestSave: (albumItemId: string) => void;
-  resolveSaveRequest: (albumItemId: string, status: SaveRequestStatus) => void;
-  acceptInvite: (inviteId: string) => void;
-  declineInvite: (inviteId: string) => void;
-  regenerateInviteLink: () => void;
-  toggleDnd: () => void;
-  toggleGroupDnd: (id: string) => void;
-  addGroup: (name: string) => void;
+  shareToTargets: (targetGroupIds: string[], caption?: string) => Promise<void>;
+
+  requestSave: (photoId: string) => Promise<void>;
+  resolveSave: (photoId: string, targetUserId: string, approve: boolean) => Promise<void>;
+
+  setDnd: (patch: Partial<DndSettings>) => Promise<void>;
+  addGroup: (name: string) => Promise<void>;
+  updateDisplayName: (name: string) => Promise<void>;
 }
 
-function randomGradient(): AvatarGradient {
-  const palette: AvatarGradient[] = [
-    ['#FF9AA6', '#8A6BC7'],
-    ['#9AD4FF', '#6B7FC7'],
-    ['#FFD9A0', '#C77B9A'],
-    ['#A0FFD9', '#6BC7A0'],
-  ];
-  return palette[Math.floor(Math.random() * palette.length)];
+function gradient(start: string, end: string): AvatarGradient {
+  return [start, end];
 }
 
-function randomCode() {
-  return Math.random().toString(36).slice(2, 10);
+function mapFriend(f: ApiFriend): Friend {
+  return {
+    id: f.id,
+    name: f.displayName,
+    avatarGradient: gradient(f.avatarStart, f.avatarEnd),
+    dnd: f.dnd,
+    statusText: f.dnd ? '방해금지 중' : '친구',
+  };
+}
+
+function mapGroup(g: ApiGroup): Group {
+  return {
+    id: g.id,
+    name: g.name,
+    kind: g.kind === 'GROUP' ? 'group' : 'personal',
+    memberCount: g.memberCount,
+    dnd: g.dnd,
+    subLabel: g.kind === 'GROUP' ? `친구 ${g.memberCount}명 · 공유 허용` : g.dnd ? '방해금지 중 · 알림 지연' : '친구',
+    friendId: g.friendId,
+  };
+}
+
+function mapReceived(p: ApiReceivedPhoto): AlbumItem {
+  return {
+    id: p.deliveryId,
+    direction: 'received',
+    photoId: p.photoId,
+    peerName: p.senderName,
+    caption: p.caption,
+    photoUrl: resolveMediaUrl(p.url),
+    sentAt: new Date(p.createdAt).getTime(),
+    expiresAt: new Date(p.expiresAt).getTime(),
+    saveStatus: p.saveStatus.toLowerCase() as SaveRequestStatus,
+  };
+}
+
+function mapSent(p: ApiSentPhoto): AlbumItem[] {
+  return p.deliveries.map((d) => ({
+    id: d.deliveryId,
+    direction: 'sent',
+    photoId: p.photoId,
+    peerName: d.displayName,
+    caption: p.caption,
+    photoUrl: resolveMediaUrl(p.url),
+    sentAt: new Date(p.createdAt).getTime(),
+    expiresAt: new Date(p.expiresAt).getTime(),
+    saveStatus: d.saveStatus.toLowerCase() as SaveRequestStatus,
+    targetUserId: d.userId,
+  }));
+}
+
+function mapWidget(p: ApiWidgetPhoto | null): WidgetPhoto | null {
+  if (!p) return null;
+  return {
+    senderName: p.senderName,
+    caption: p.caption,
+    timeLabel: new Date(p.createdAt).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }),
+    photoUrl: resolveMediaUrl(p.url),
+  };
+}
+
+function mapDnd(d: ApiDnd): DndSettings {
+  return { enabled: d.enabled, scheduleEnabled: d.scheduleEnabled, scheduleStart: d.scheduleStart, scheduleEnd: d.scheduleEnd };
 }
 
 export const useAppStore = create<AppState>()(
   persist(
     (set, get) => ({
       hasOnboarded: false,
-      friends: initialFriends,
-      groups: initialGroups,
-      album: initialAlbum,
-      widgetMode: 'waiting',
-      widgetPhoto: initialWidgetPhoto,
-      inviteLink: initialInviteLink,
-      incomingInvites: [{ id: 'inv-hyunwoo', name: '현우', suggestedGroupId: 'g-우리끼리' }],
+      authStatus: 'idle',
+      authError: null,
+      me: null,
+
+      friends: [],
+      groups: [],
+      dnd: { enabled: false, scheduleEnabled: false, scheduleStart: '23:00', scheduleEnd: '08:00' },
+      inviteLink: null,
+      pendingInvite: null,
+      widgetPhoto: null,
+      album: [],
       capturedPhoto: null,
-      dnd: { enabled: true, scheduleEnabled: true, scheduleLabel: '매일 23:00 – 08:00' },
       pokedIds: [],
 
       completeOnboarding: () => set({ hasOnboarded: true }),
 
-      poke: (id) =>
-        set((state) => ({
-          pokedIds: state.pokedIds.includes(id) ? state.pokedIds : [...state.pokedIds, id],
-        })),
+      // Both the root layout and the invite deep-link screen call this on
+      // mount, so a status-flag guard alone isn't enough — two calls in the
+      // same tick can both see 'idle' before either's `set()` lands and end
+      // up registering two backend accounts for one device. Cache the
+      // in-flight promise itself for true single-flight semantics.
+      bootstrap: () => {
+        if (bootstrapPromise) return bootstrapPromise;
+        if (get().authStatus === 'ready') return Promise.resolve();
+        bootstrapPromise = (async () => {
+          set({ authStatus: 'loading', authError: null });
+          try {
+            const deviceId = await getOrCreateDeviceId();
+            const { token, user } = await api.post<{ token: string; user: ApiUser }>('/auth/device', { deviceId });
+            setAuthToken(token);
+            syncIosWidgetCredentials(token, API_URL);
+            set({
+              me: { id: user.id, displayName: user.displayName, avatarGradient: gradient(user.avatarStart, user.avatarEnd) },
+              authStatus: 'ready',
+            });
+            await get().refreshAll();
+          } catch (err) {
+            set({ authStatus: 'error', authError: err instanceof Error ? err.message : '연결에 실패했어요' });
+            bootstrapPromise = null; // allow a retry
+          }
+        })();
+        return bootstrapPromise;
+      },
 
-      toggleWidgetMode: () =>
-        set((state) => ({ widgetMode: state.widgetMode === 'waiting' ? 'photo' : 'waiting' })),
+      refreshAll: async () => {
+        await Promise.all([
+          get().refreshFriends(),
+          get().refreshGroups(),
+          get().refreshAlbum(),
+          get().refreshWidget(),
+          get().refreshInvite(),
+          (async () => {
+            const { dnd } = await api.get<{ dnd: ApiDnd }>('/settings/dnd');
+            set({ dnd: mapDnd(dnd) });
+          })(),
+        ]);
+      },
+
+      refreshFriends: async () => {
+        const { friends } = await api.get<{ friends: ApiFriend[] }>('/friends');
+        set({ friends: friends.map(mapFriend) });
+      },
+
+      refreshGroups: async () => {
+        const { groups } = await api.get<{ groups: ApiGroup[] }>('/groups');
+        set({ groups: groups.map(mapGroup) });
+      },
+
+      refreshAlbum: async () => {
+        const [{ items: received }, { items: sent }] = await Promise.all([
+          api.get<{ items: ApiReceivedPhoto[] }>('/photos/received'),
+          api.get<{ items: ApiSentPhoto[] }>('/photos/sent'),
+        ]);
+        const merged = [...received.map(mapReceived), ...sent.flatMap(mapSent)].sort((a, b) => b.sentAt - a.sentAt);
+        set({ album: merged });
+      },
+
+      refreshWidget: async () => {
+        const { photo } = await api.get<{ photo: ApiWidgetPhoto | null }>('/photos/widget/latest');
+        const widgetPhoto = mapWidget(photo);
+        set({ widgetPhoto });
+        // Push straight to any placed Android home-screen widget too — see
+        // syncAndroidWidget.tsx for why this matters (30-min native floor).
+        syncAndroidWidget(
+          widgetPhoto && {
+            url: widgetPhoto.photoUrl,
+            senderName: widgetPhoto.senderName,
+            caption: widgetPhoto.caption,
+            timeLabel: widgetPhoto.timeLabel,
+          }
+        ).catch(() => {});
+        // iOS side just needs a "refresh now" nudge — the widget's own
+        // TimelineProvider fetches the photo itself (see syncIosWidget.ts).
+        requestIosWidgetReload();
+      },
+
+      refreshInvite: async () => {
+        const { invite } = await api.get<{ invite: ApiInvite }>('/invites/mine');
+        set({ inviteLink: { code: invite.code, expiresAt: new Date(invite.expiresAt).getTime() } });
+      },
+
+      poke: async (target) => {
+        const body = 'userId' in target ? { toUserId: target.userId } : { toGroupId: target.groupId };
+        const { anyDelayed } = await api.post<{ anyDelayed: boolean }>('/pokes', body);
+        const id = 'userId' in target ? target.userId : target.groupId;
+        set((state) => ({ pokedIds: state.pokedIds.includes(id) ? state.pokedIds : [...state.pokedIds, id] }));
+        return anyDelayed;
+      },
+
+      loadInviteByCode: async (code) => {
+        const { invite } = await api.get<{ invite: ApiInvitePreview }>(`/invites/${code}`);
+        set({ pendingInvite: invite });
+      },
+
+      acceptInvite: async (code, groupIds) => {
+        await api.post(`/invites/${code}/accept`, { groupIds });
+        set({ pendingInvite: null });
+        await Promise.all([get().refreshFriends(), get().refreshGroups()]);
+      },
+
+      clearPendingInvite: () => set({ pendingInvite: null }),
 
       setCapturedPhoto: (photo) => set({ capturedPhoto: photo }),
 
-      shareToTargets: (targetIds) => {
-        const { groups, capturedPhoto, album } = get();
-        if (!capturedPhoto || targetIds.length === 0) return;
-        const now = Date.now();
-        const newItems: AlbumItem[] = targetIds.map((id) => {
-          const target = groups.find((g) => g.id === id);
-          return {
-            id: `a-${now}-${id}`,
-            direction: 'sent',
-            peerName: target?.name ?? '알 수 없음',
-            caption: '방금 보낸 사진',
-            gradient: capturedPhoto.gradient,
-            sentAt: now,
-            expiresAt: now + 24 * HOUR,
-            saveStatus: 'none',
-          };
-        });
-        set({
-          album: [...newItems, ...album],
-          capturedPhoto: null,
-          widgetMode: 'photo',
-          widgetPhoto: {
-            senderName: '나',
-            caption: '방금 보낸 사진',
-            timeLabel: '방금',
-            gradient: capturedPhoto.gradient,
-          },
-        });
+      shareToTargets: async (targetGroupIds, caption = '') => {
+        const { capturedPhoto } = get();
+        if (!capturedPhoto || targetGroupIds.length === 0) return;
+
+        const form = new FormData();
+        if (Platform.OS === 'web') {
+          // Web's FormData is the standard browser one — it needs a real Blob,
+          // not React Native's native-only {uri,name,type} shorthand below.
+          const blob = await (await fetch(capturedPhoto.uri)).blob();
+          form.append('photo', blob, 'photo.jpg');
+        } else {
+          form.append('photo', {
+            uri: capturedPhoto.uri,
+            name: 'photo.jpg',
+            type: 'image/jpeg',
+          } as unknown as Blob);
+        }
+        form.append('caption', caption);
+        form.append('targetGroupIds', JSON.stringify(targetGroupIds));
+
+        await api.postForm('/photos', form);
+        set({ capturedPhoto: null });
+        await Promise.all([get().refreshAlbum(), get().refreshWidget()]);
+
+        // Best-effort cleanup of the local temp capture (native only — web
+        // blob: URLs aren't files expo-file-system can address).
+        if (Platform.OS !== 'web') {
+          try {
+            new File(capturedPhoto.uri).delete();
+          } catch {
+            // already gone — fine to ignore
+          }
+        }
       },
 
-      requestSave: (albumItemId) => {
-        set((state) => ({
-          album: state.album.map((item) =>
-            item.id === albumItemId ? { ...item, saveStatus: 'pending' } : item
-          ),
-        }));
-        // Demo-only: simulate the sender approving the save request after a short delay.
-        // Real approval flow requires the backend (see SPEC.md phase 3).
-        setTimeout(() => {
-          get().resolveSaveRequest(albumItemId, 'approved');
-        }, SAVE_REQUEST_DEMO_DELAY);
+      requestSave: async (photoId) => {
+        await api.post(`/photos/${photoId}/request-save`);
+        await get().refreshAlbum();
       },
 
-      resolveSaveRequest: (albumItemId, status) =>
-        set((state) => ({
-          album: state.album.map((item) =>
-            item.id === albumItemId ? { ...item, saveStatus: status } : item
-          ),
-        })),
-
-      acceptInvite: (inviteId) => {
-        const invite = get().incomingInvites.find((i) => i.id === inviteId);
-        if (!invite) return;
-        const newFriend: Friend = {
-          id: `f-${randomCode()}`,
-          name: invite.name,
-          avatarGradient: randomGradient(),
-          dnd: false,
-          statusText: '방금 친구가 됐어요',
-        };
-        set((state) => ({
-          friends: [newFriend, ...state.friends],
-          groups: [
-            ...state.groups,
-            {
-              id: `p-${newFriend.id}`,
-              name: newFriend.name,
-              kind: 'personal',
-              memberCount: 1,
-              dnd: false,
-              subLabel: '새 친구',
-              friendId: newFriend.id,
-            },
-          ],
-          incomingInvites: state.incomingInvites.filter((i) => i.id !== inviteId),
-        }));
+      resolveSave: async (photoId, targetUserId, approve) => {
+        await api.post(`/photos/${photoId}/deliveries/${targetUserId}/resolve-save`, { approve });
+        await get().refreshAlbum();
       },
 
-      declineInvite: (inviteId) =>
-        set((state) => ({
-          incomingInvites: state.incomingInvites.filter((i) => i.id !== inviteId),
-        })),
-
-      regenerateInviteLink: () => {
-        const now = Date.now();
-        set({
-          inviteLink: { code: randomCode(), createdAt: now, expiresAt: now + 7 * 24 * HOUR, used: false },
-        });
+      setDnd: async (patch) => {
+        const { dnd } = await api.patch<{ dnd: ApiDnd }>('/settings/dnd', patch);
+        set({ dnd: mapDnd(dnd) });
       },
 
-      toggleDnd: () => set((state) => ({ dnd: { ...state.dnd, enabled: !state.dnd.enabled } })),
+      addGroup: async (name) => {
+        await api.post('/groups', { name });
+        await get().refreshGroups();
+      },
 
-      toggleGroupDnd: (id) =>
-        set((state) => ({
-          groups: state.groups.map((g) => (g.id === id ? { ...g, dnd: !g.dnd } : g)),
-        })),
-
-      addGroup: (name) =>
-        set((state) => ({
-          groups: [
-            ...state.groups,
-            {
-              id: `g-${randomCode()}`,
-              name,
-              kind: 'group',
-              memberCount: 1,
-              dnd: false,
-              subLabel: '친구 1명 · 공유 허용',
-            },
-          ],
-        })),
+      updateDisplayName: async (name) => {
+        const { user } = await api.patch<{ user: ApiUser }>('/auth/me', { displayName: name });
+        set({ me: { id: user.id, displayName: user.displayName, avatarGradient: gradient(user.avatarStart, user.avatarEnd) } });
+      },
     }),
     {
       name: 'jigeum-mohae-store',
       storage: createJSONStorage(() => AsyncStorage),
-      partialize: (state) => ({ hasOnboarded: state.hasOnboarded, dnd: state.dnd }),
+      partialize: (state) => ({ hasOnboarded: state.hasOnboarded }),
     }
   )
 );
+
+export { ApiError };
