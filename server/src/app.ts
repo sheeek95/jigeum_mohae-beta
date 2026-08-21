@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 
+import compression from 'compression';
 import cors from 'cors';
 import express, { type NextFunction, type Request, type Response } from 'express';
 import { ZodError } from 'zod';
@@ -17,9 +18,12 @@ fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 
 export const app = express();
 
+// gzips JSON API responses; already-compressed photo files under /uploads
+// are skipped automatically (compression checks content-type).
+app.use(compression());
 app.use(cors());
 app.use(express.json());
-app.use('/uploads', express.static(UPLOAD_DIR));
+app.use('/uploads', express.static(UPLOAD_DIR, { maxAge: '1d', immutable: true }));
 
 app.get('/health', (_req, res) => res.json({ ok: true }));
 

@@ -4,6 +4,7 @@ import path from 'node:path';
 
 import { Router } from 'express';
 import multer from 'multer';
+import sharp from 'sharp';
 import { z } from 'zod';
 
 import { badRequest, forbidden, notFound } from '../lib/errors.js';
@@ -12,19 +13,30 @@ import { requireAuth } from '../middleware/auth.js';
 
 export const UPLOAD_DIR = path.resolve(process.cwd(), 'uploads');
 const PHOTO_TTL_MS = 24 * 60 * 60 * 1000; // spec: 24시간 후 자동 삭제
+// Photos only ever live 24h (or until an explicit save) and are only ever
+// shown at widget/thumbnail/full-screen-preview size — re-encoding on
+// upload keeps disk usage and bandwidth low without a visible quality hit.
+const MAX_DIMENSION = 1440;
+const JPEG_QUALITY = 72;
 
-const storage = multer.diskStorage({
-  destination: UPLOAD_DIR,
-  filename: (_req, file, cb) => {
-    const ext = path.extname(file.originalname) || '.jpg';
-    cb(null, `${crypto.randomUUID()}${ext}`);
-  },
-});
+// Buffered in memory rather than written straight to disk since every
+// upload gets re-encoded through sharp before it's persisted.
 const upload = multer({
-  storage,
+  storage: multer.memoryStorage(),
   limits: { fileSize: 15 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => cb(null, file.mimetype.startsWith('image/')),
 });
+
+async function saveCompressedPhoto(buffer: Buffer): Promise<string> {
+  const filename = `${crypto.randomUUID()}.jpg`;
+  const compressed = await sharp(buffer)
+    .rotate() // apply EXIF orientation before stripping metadata below
+    .resize({ width: MAX_DIMENSION, height: MAX_DIMENSION, fit: 'inside', withoutEnlargement: true })
+    .jpeg({ quality: JPEG_QUALITY, mozjpeg: true })
+    .toBuffer();
+  await fs.writeFile(path.join(UPLOAD_DIR, filename), compressed);
+  return filename;
+}
 
 export const photosRouter = Router();
 photosRouter.use(requireAuth);
@@ -47,6 +59,8 @@ photosRouter.post('/', upload.single('photo'), async (req, res) => {
   });
   if (groups.length === 0) throw badRequest('보낼 대상을 찾을 수 없어요');
 
+  const filename = await saveCompressedPhoto(req.file.buffer);
+
   const expiresAt = new Date(Date.now() + PHOTO_TTL_MS);
   const photos = await prisma.$transaction(
     groups.map((group) =>
@@ -54,7 +68,7 @@ photosRouter.post('/', upload.single('photo'), async (req, res) => {
         data: {
           senderId: req.userId,
           groupId: group.id,
-          storageKey: req.file!.filename,
+          storageKey: filename,
           caption,
           expiresAt,
           deliveries: {
@@ -68,7 +82,7 @@ photosRouter.post('/', upload.single('photo'), async (req, res) => {
     )
   );
 
-  res.status(201).json({ photos, url: `/uploads/${req.file.filename}` });
+  res.status(201).json({ photos, url: `/uploads/${filename}` });
 });
 
 photosRouter.get('/widget/latest', async (req, res) => {
