@@ -6,6 +6,7 @@ name: EAS Update
 # changes (new native modules, app icon, permissions, the widget extension)
 # still require a fresh EAS Build.
 on:
+  workflow_dispatch: {}
   push:
     branches:
       - claude/ios-android-cross-platform-app-bbzq4r
