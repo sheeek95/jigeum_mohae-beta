@@ -60,6 +60,14 @@ export default function CameraScreen() {
     setPhotoUri(null);
   }
 
+  // Opened directly from the widget (jigeummohae://camera) this screen is
+  // often the first thing on the stack — router.back() is then a no-op, so
+  // fall back to the home tab instead of leaving the X button dead.
+  function closeCamera() {
+    if (router.canGoBack()) router.back();
+    else router.replace('/(tabs)');
+  }
+
   function confirmAndShare() {
     if (!photoUri) return;
     setCapturedPhoto({ uri: photoUri, takenAt: Date.now() });
@@ -78,7 +86,7 @@ export default function CameraScreen() {
           <Text style={styles.permissionTitle}>카메라 권한이 필요해요</Text>
           <Text style={styles.permissionSub}>친구에게 지금 이 순간을 사진으로 보내려면 카메라 접근을 허용해주세요.</Text>
           <View style={styles.permissionActions}>
-            <GhostButton onPress={() => router.back()}>닫기</GhostButton>
+            <GhostButton onPress={closeCamera}>닫기</GhostButton>
             <PrimaryButton onPress={requestPermission}>권한 허용</PrimaryButton>
           </View>
           <Pressable onPress={() => setPhotoUri(writeDemoPhoto())} hitSlop={8}>
@@ -98,7 +106,7 @@ export default function CameraScreen() {
             <View style={styles.pill}>
               <Text style={styles.pillText}>지금 이 순간을 공유해보세요</Text>
             </View>
-            <Pressable style={styles.pillTouchable} onPress={() => router.back()}>
+            <Pressable style={styles.pillTouchable} onPress={closeCamera}>
               <Text style={styles.pillText}>✕</Text>
             </Pressable>
           </SafeAreaView>
