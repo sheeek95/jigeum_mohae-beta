@@ -11,6 +11,7 @@ on:
     branches:
       - claude/ios-android-cross-platform-app-bbzq4r
     paths:
+      - '.github/workflows/eas-update.yml'
       - 'app/**'
       - 'src/**'
       - 'assets/**'
