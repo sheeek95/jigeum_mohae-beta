@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -10,22 +10,11 @@ import { Toast } from '../../src/components/Toast';
 import { useAppStore } from '../../src/store/useAppStore';
 import { colors, radius } from '../../src/theme/tokens';
 
-type PokeTarget = {
-  id: string;
-  name: string;
-  gradient: readonly [string, string];
-  dnd: boolean;
-  statusText: string;
-  kind: 'friend' | 'group';
-};
-
 export default function PokeScreen() {
   const friends = useAppStore((s) => s.friends);
-  const allGroups = useAppStore((s) => s.groups);
   const pokedIds = useAppStore((s) => s.pokedIds);
   const poke = useAppStore((s) => s.poke);
   const refreshFriends = useAppStore((s) => s.refreshFriends);
-  const refreshGroups = useAppStore((s) => s.refreshGroups);
   const authStatus = useAppStore((s) => s.authStatus);
 
   const [toastMsg, setToastMsg] = useState('');
@@ -35,31 +24,13 @@ export default function PokeScreen() {
     useCallback(() => {
       if (authStatus !== 'ready') return;
       refreshFriends();
-      refreshGroups();
-    }, [authStatus, refreshFriends, refreshGroups])
+    }, [authStatus, refreshFriends])
   );
 
-  const targets: PokeTarget[] = useMemo(
-    () => [
-      ...friends.map((f) => ({ id: f.id, name: f.name, gradient: f.avatarGradient, dnd: f.dnd, statusText: f.statusText, kind: 'friend' as const })),
-      ...allGroups
-        .filter((g) => g.kind === 'group')
-        .map((g) => ({
-          id: g.id,
-          name: g.name,
-          gradient: ['#6B7FC7', '#3A2761'] as const,
-          dnd: false,
-          statusText: `그룹 · ${g.memberCount}명`,
-          kind: 'group' as const,
-        })),
-    ],
-    [friends, allGroups]
-  );
-
-  async function handlePoke(target: PokeTarget) {
+  async function handlePoke(friend: (typeof friends)[number]) {
     try {
-      const delayed = await poke(target.kind === 'friend' ? { userId: target.id } : { groupId: target.id });
-      setToastMsg(delayed ? `${target.name}은(는) 방해금지 중이에요 · 알림이 지연돼요` : `${target.name}에게 '지금 뭐해?'를 보냈어요`);
+      const delayed = await poke(friend.id);
+      setToastMsg(delayed ? `${friend.name}은(는) 방해금지 중이에요 · 알림이 지연돼요` : `${friend.name}에게 '지금 뭐해?'를 보냈어요`);
     } catch {
       setToastMsg('찌르기에 실패했어요. 다시 시도해주세요');
     }
@@ -78,7 +49,7 @@ export default function PokeScreen() {
         </View>
 
         <FlatList
-          data={targets}
+          data={friends}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.list}
           ListEmptyComponent={
@@ -90,7 +61,7 @@ export default function PokeScreen() {
             const isPoked = pokedIds.includes(item.id);
             return (
               <View style={styles.row}>
-                <Avatar gradient={item.gradient} dnd={item.dnd} />
+                <Avatar gradient={item.avatarGradient} dnd={item.dnd} />
                 <View style={styles.info}>
                   <Text style={styles.name}>{item.name}</Text>
                   <Text style={styles.status}>{item.statusText}</Text>

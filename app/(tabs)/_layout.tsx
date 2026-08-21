@@ -5,6 +5,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '../../src/theme/tokens';
 
 const CONTENT_HEIGHT = 54;
+// Extra lift above the safe-area inset so the bar doesn't sit flush against
+// the very bottom edge (gesture-nav devices especially looked too cramped).
+const EXTRA_LIFT = 10;
 
 export default function TabsLayout() {
   const insets = useSafeAreaInsets();
@@ -19,8 +22,8 @@ export default function TabsLayout() {
           backgroundColor: colors.bgDeep,
           borderTopColor: colors.line,
           borderTopWidth: 1,
-          height: CONTENT_HEIGHT + insets.bottom,
-          paddingBottom: insets.bottom,
+          height: CONTENT_HEIGHT + insets.bottom + EXTRA_LIFT,
+          paddingBottom: insets.bottom + EXTRA_LIFT,
           paddingTop: 6,
         },
         tabBarLabelStyle: { fontSize: 10, fontWeight: '700' },

@@ -66,7 +66,7 @@ interface AppState {
   refreshWidget: () => Promise<void>;
   refreshInvite: () => Promise<void>;
 
-  poke: (target: { userId: string } | { groupId: string }) => Promise<boolean>;
+  poke: (userId: string) => Promise<boolean>;
   loadInviteByCode: (code: string) => Promise<void>;
   acceptInvite: (code: string, groupIds?: string[]) => Promise<void>;
   clearPendingInvite: () => void;
@@ -300,11 +300,9 @@ export const useAppStore = create<AppState>()(
         set({ inviteLink: { code: invite.code, expiresAt: new Date(invite.expiresAt).getTime() } });
       },
 
-      poke: async (target) => {
-        const body = 'userId' in target ? { toUserId: target.userId } : { toGroupId: target.groupId };
-        const { anyDelayed } = await api.post<{ anyDelayed: boolean }>('/pokes', body);
-        const id = 'userId' in target ? target.userId : target.groupId;
-        set((state) => ({ pokedIds: state.pokedIds.includes(id) ? state.pokedIds : [...state.pokedIds, id] }));
+      poke: async (userId) => {
+        const { anyDelayed } = await api.post<{ anyDelayed: boolean }>('/pokes', { toUserId: userId });
+        set((state) => ({ pokedIds: state.pokedIds.includes(userId) ? state.pokedIds : [...state.pokedIds, userId] }));
         return anyDelayed;
       },
 
