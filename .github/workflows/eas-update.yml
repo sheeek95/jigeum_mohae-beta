@@ -1,0 +1,42 @@
+name: EAS Update
+
+# Pushes an OTA JS update to the "preview" channel whenever app code changes
+# on this branch — installed builds (from the "preview" EAS Build profile)
+# pick it up automatically on next launch, no reinstall needed. Native-level
+# changes (new native modules, app icon, permissions, the widget extension)
+# still require a fresh EAS Build.
+on:
+  push:
+    branches:
+      - claude/ios-android-cross-platform-app-bbzq4r
+    paths:
+      - 'app/**'
+      - 'src/**'
+      - 'assets/**'
+      - 'app.json'
+      - 'eas.json'
+      - 'index.js'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'tsconfig.json'
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - run: npm ci
+
+      - name: Publish OTA update
+        run: eas update --channel preview --message "${{ github.event.head_commit.message }}" --non-interactive

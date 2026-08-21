@@ -38,6 +38,7 @@
     },
     "plugins": [
       "expo-router",
+      "expo-updates",
       [
         "expo-camera",
         {
@@ -66,6 +67,12 @@
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "runtimeVersion": {
+      "policy": "sdkVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/36f65830-f225-417a-9276-c70c600f4e26"
     },
     "extra": {
       "eas": {
