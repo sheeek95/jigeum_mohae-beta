@@ -1,9 +1,14 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { colors } from '../../src/theme/tokens';
 
+const CONTENT_HEIGHT = 54;
+
 export default function TabsLayout() {
+  const insets = useSafeAreaInsets();
+
   return (
     <Tabs
       screenOptions={{
@@ -14,11 +19,12 @@ export default function TabsLayout() {
           backgroundColor: colors.bgDeep,
           borderTopColor: colors.line,
           borderTopWidth: 1,
-          height: 64,
+          height: CONTENT_HEIGHT + insets.bottom,
+          paddingBottom: insets.bottom,
+          paddingTop: 6,
         },
         tabBarLabelStyle: { fontSize: 10, fontWeight: '700' },
-      }}
-    >
+      }}>
       <Tabs.Screen
         name="index"
         options={{ title: '위젯', tabBarIcon: ({ color, size }) => <Ionicons name="apps-outline" color={color} size={size} /> }}

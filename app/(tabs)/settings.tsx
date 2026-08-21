@@ -21,9 +21,13 @@ export default function SettingsScreen() {
   const updateDisplayName = useAppStore((s) => s.updateDisplayName);
   const refreshGroups = useAppStore((s) => s.refreshGroups);
   const authStatus = useAppStore((s) => s.authStatus);
+  const authError = useAppStore((s) => s.authError);
+  const apiUrl = useAppStore((s) => s.apiUrl);
+  const changeApiUrl = useAppStore((s) => s.changeApiUrl);
 
   const [groupModal, setGroupModal] = useState(false);
   const [nameModal, setNameModal] = useState(false);
+  const [serverModal, setServerModal] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -89,6 +93,19 @@ export default function SettingsScreen() {
               받은 사진은 24시간 뒤 자동 삭제돼요. 저장 요청을 보내고 상대가 허용하면 양쪽 앨범에 남길 수 있어요.
             </Text>
           </View>
+
+          <SectionLabel style={styles.sectionLabel}>개발자 설정</SectionLabel>
+          <View style={styles.block}>
+            <Pressable style={[styles.row, { borderBottomWidth: 0 }]} onPress={() => setServerModal(true)}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.t1}>서버 주소</Text>
+                <Text style={styles.t2} numberOfLines={1}>
+                  {apiUrl} · {authStatus === 'ready' ? '연결됨' : authStatus === 'error' ? `연결 실패${authError ? ` (${authError})` : ''}` : '연결 중…'}
+                </Text>
+              </View>
+              <Text style={styles.manage}>변경 ›</Text>
+            </Pressable>
+          </View>
         </ScrollView>
 
         <PromptModal
@@ -109,6 +126,18 @@ export default function SettingsScreen() {
           onConfirm={(name) => {
             setNameModal(false);
             updateDisplayName(name);
+          }}
+        />
+        <PromptModal
+          visible={serverModal}
+          title="서버 주소"
+          placeholder="https://jigeum-mohae-api.onrender.com"
+          initialValue={apiUrl}
+          confirmLabel="연결"
+          onCancel={() => setServerModal(false)}
+          onConfirm={(url) => {
+            setServerModal(false);
+            changeApiUrl(url);
           }}
         />
       </SafeAreaView>

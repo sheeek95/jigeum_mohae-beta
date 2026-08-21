@@ -4,8 +4,9 @@ import { Platform } from 'react-native';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
-import { api, API_URL, ApiError, resolveMediaUrl, setAuthToken } from '../api/client';
+import { api, ApiError, resolveMediaUrl, setAuthToken } from '../api/client';
 import { getOrCreateDeviceId } from '../api/identity';
+import { getApiUrl, loadStoredApiUrl, setApiUrl } from '../api/urlConfig';
 import { syncAndroidWidget } from '../widgets/syncAndroidWidget';
 import { requestIosWidgetReload, syncIosWidgetCredentials } from '../widgets/syncIosWidget';
 import type {
@@ -54,8 +55,10 @@ interface AppState {
   capturedPhoto: CapturedPhoto | null;
   pokedIds: string[];
 
+  apiUrl: string;
   completeOnboarding: () => void;
   bootstrap: () => Promise<void>;
+  changeApiUrl: (url: string) => Promise<void>;
   refreshAll: () => Promise<void>;
   refreshFriends: () => Promise<void>;
   refreshGroups: () => Promise<void>;
@@ -165,6 +168,7 @@ export const useAppStore = create<AppState>()(
       album: [],
       capturedPhoto: null,
       pokedIds: [],
+      apiUrl: getApiUrl(),
 
       completeOnboarding: () => set({ hasOnboarded: true }),
 
@@ -179,10 +183,12 @@ export const useAppStore = create<AppState>()(
         bootstrapPromise = (async () => {
           set({ authStatus: 'loading', authError: null });
           try {
+            const apiUrl = await loadStoredApiUrl();
+            set({ apiUrl });
             const deviceId = await getOrCreateDeviceId();
             const { token, user } = await api.post<{ token: string; user: ApiUser }>('/auth/device', { deviceId });
             setAuthToken(token);
-            syncIosWidgetCredentials(token, API_URL);
+            syncIosWidgetCredentials(token, getApiUrl());
             set({
               me: { id: user.id, displayName: user.displayName, avatarGradient: gradient(user.avatarStart, user.avatarEnd) },
               authStatus: 'ready',
@@ -194,6 +200,17 @@ export const useAppStore = create<AppState>()(
           }
         })();
         return bootstrapPromise;
+      },
+
+      // Lets Settings point a beta APK at a different backend without a
+      // rebuild — EXPO_PUBLIC_API_URL is baked in at build time (see
+      // urlConfig.ts), so this is the only way to change it afterwards.
+      changeApiUrl: async (url) => {
+        await setApiUrl(url);
+        set({ apiUrl: getApiUrl(), authStatus: 'idle', me: null });
+        bootstrapPromise = null;
+        setAuthToken(null);
+        await get().bootstrap();
       },
 
       refreshAll: async () => {

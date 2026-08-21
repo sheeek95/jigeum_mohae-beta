@@ -1,4 +1,4 @@
-export const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:4000';
+import { getApiUrl } from './urlConfig';
 
 export class ApiError extends Error {
   status: number;
@@ -32,7 +32,7 @@ async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
     body = JSON.stringify(opts.json);
   }
 
-  const res = await fetch(`${API_URL}${path}`, { method: opts.method ?? 'GET', headers, body });
+  const res = await fetch(`${getApiUrl()}${path}`, { method: opts.method ?? 'GET', headers, body });
 
   if (res.status === 204) return undefined as T;
 
@@ -55,5 +55,5 @@ export const api = {
 
 export function resolveMediaUrl(pathOrUrl: string): string {
   if (pathOrUrl.startsWith('http')) return pathOrUrl;
-  return `${API_URL}${pathOrUrl}`;
+  return `${getApiUrl()}${pathOrUrl}`;
 }
