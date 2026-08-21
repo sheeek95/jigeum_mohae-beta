@@ -55,6 +55,7 @@ export interface ApiWidgetPhoto {
   url: string;
   caption: string;
   senderName: string;
+  groupName: string | null;
   createdAt: string;
 }
 

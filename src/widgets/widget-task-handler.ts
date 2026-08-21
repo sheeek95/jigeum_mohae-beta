@@ -13,7 +13,7 @@ interface ApiUserResponse {
 }
 
 interface ApiWidgetPhotoResponse {
-  photo: { url: string; caption: string; senderName: string; createdAt: string } | null;
+  photo: { url: string; caption: string; senderName: string; groupName: string | null; createdAt: string } | null;
 }
 
 // Headless JS tasks run outside the mounted React tree (the app may not even
@@ -30,6 +30,7 @@ async function fetchLatestPhoto(): Promise<WidgetPhotoData | null> {
     return {
       url: resolveMediaUrl(photo.url),
       senderName: photo.senderName,
+      groupName: photo.groupName,
       caption: photo.caption,
       timeLabel: new Date(photo.createdAt).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }),
     };

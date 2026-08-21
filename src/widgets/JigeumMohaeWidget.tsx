@@ -6,6 +6,7 @@ import { colors } from '../theme/tokens';
 export interface WidgetPhotoData {
   url: string;
   senderName: string;
+  groupName: string | null;
   caption: string;
   timeLabel: string;
 }
@@ -67,7 +68,7 @@ export function JigeumMohaeWidget({ photo }: Props) {
             >
               <FlexWidget style={{ width: 'match_parent', backgroundColor: 'rgba(0, 0, 0, 0.4)', padding: 10 }}>
                 <TextWidget
-                  text={`${photo.senderName} · ${photo.timeLabel}`}
+                  text={`${photo.senderName}${photo.groupName ? ` · ${photo.groupName}` : ''} · ${photo.timeLabel}`}
                   style={{ fontSize: 11, fontWeight: '700', color: '#FFFFFF' }}
                 />
                 {photo.caption ? (

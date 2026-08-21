@@ -74,7 +74,8 @@ export default function HomeScreen() {
                 <Image source={{ uri: widgetPhoto.photoUrl }} style={StyleSheet.absoluteFill} contentFit="cover" />
                 <View style={[StyleSheet.absoluteFill, styles.photoOverlay]} />
                 <Text style={styles.photoCap}>
-                  {widgetPhoto.senderName} · {widgetPhoto.timeLabel}
+                  {widgetPhoto.senderName}
+                  {widgetPhoto.groupName ? ` · ${widgetPhoto.groupName}` : ''} · {widgetPhoto.timeLabel}
                 </Text>
                 <Text style={styles.photoCapSmall}>&ldquo;{widgetPhoto.caption}&rdquo;</Text>
               </View>

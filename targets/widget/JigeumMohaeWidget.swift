@@ -19,6 +19,7 @@ struct WidgetPhotoResponse: Decodable {
     let url: String
     let caption: String
     let senderName: String
+    let groupName: String?
     let createdAt: String
   }
   let photo: Photo?
@@ -27,6 +28,7 @@ struct WidgetPhotoResponse: Decodable {
 struct JigeumMohaeEntry: TimelineEntry {
   let date: Date
   let senderName: String?
+  let groupName: String?
   let caption: String?
   let timeLabel: String?
   let image: UIImage?
@@ -35,7 +37,7 @@ struct JigeumMohaeEntry: TimelineEntry {
 
 struct Provider: TimelineProvider {
   func placeholder(in context: Context) -> JigeumMohaeEntry {
-    JigeumMohaeEntry(date: Date(), senderName: nil, caption: nil, timeLabel: nil, image: nil, signedIn: true)
+    JigeumMohaeEntry(date: Date(), senderName: nil, groupName: nil, caption: nil, timeLabel: nil, image: nil, signedIn: true)
   }
 
   func getSnapshot(in context: Context, completion: @escaping (JigeumMohaeEntry) -> Void) {
@@ -60,7 +62,7 @@ struct Provider: TimelineProvider {
       let apiBaseURL = defaults?.string(forKey: SharedKey.apiBaseURL),
       let requestURL = URL(string: "\(apiBaseURL)/photos/widget/latest")
     else {
-      return JigeumMohaeEntry(date: Date(), senderName: nil, caption: nil, timeLabel: nil, image: nil, signedIn: false)
+      return JigeumMohaeEntry(date: Date(), senderName: nil, groupName: nil, caption: nil, timeLabel: nil, image: nil, signedIn: false)
     }
 
     var request = URLRequest(url: requestURL)
@@ -70,7 +72,7 @@ struct Provider: TimelineProvider {
       let (data, _) = try await URLSession.shared.data(for: request)
       let decoded = try JSONDecoder().decode(WidgetPhotoResponse.self, from: data)
       guard let photo = decoded.photo, let imageURL = URL(string: photo.url) else {
-        return JigeumMohaeEntry(date: Date(), senderName: nil, caption: nil, timeLabel: nil, image: nil, signedIn: true)
+        return JigeumMohaeEntry(date: Date(), senderName: nil, groupName: nil, caption: nil, timeLabel: nil, image: nil, signedIn: true)
       }
 
       let (imageData, _) = try await URLSession.shared.data(from: imageURL)
@@ -85,13 +87,14 @@ struct Provider: TimelineProvider {
       return JigeumMohaeEntry(
         date: Date(),
         senderName: photo.senderName,
+        groupName: photo.groupName,
         caption: photo.caption,
         timeLabel: timeLabel,
         image: image,
         signedIn: true
       )
     } catch {
-      return JigeumMohaeEntry(date: Date(), senderName: nil, caption: nil, timeLabel: nil, image: nil, signedIn: true)
+      return JigeumMohaeEntry(date: Date(), senderName: nil, groupName: nil, caption: nil, timeLabel: nil, image: nil, signedIn: true)
     }
   }
 }
@@ -123,7 +126,7 @@ struct JigeumMohaeWidgetEntryView: View {
               .clipped()
 
             VStack(alignment: .leading, spacing: 2) {
-              Text("\(entry.senderName ?? "") · \(entry.timeLabel ?? "")")
+              Text("\(entry.senderName ?? "")\(entry.groupName.map { " · \($0)" } ?? "") · \(entry.timeLabel ?? "")")
                 .font(.system(size: 11, weight: .bold))
                 .foregroundColor(.white)
               if let caption = entry.caption, !caption.isEmpty {

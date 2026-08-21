@@ -1,4 +1,4 @@
-import { useFocusEffect } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -56,13 +56,17 @@ export default function SettingsScreen() {
           <SectionLabel style={styles.sectionLabel}>그룹 관리</SectionLabel>
           <View style={styles.block}>
             {groups.map((g) => (
-              <View key={g.id} style={styles.row}>
+              <Pressable
+                key={g.id}
+                style={styles.row}
+                onPress={() => router.push({ pathname: '/group/[id]', params: { id: g.id } })}
+              >
                 <View>
                   <Text style={styles.t1}>{g.name}</Text>
                   <Text style={styles.t2}>{g.subLabel}</Text>
                 </View>
                 <Text style={styles.manage}>관리 ›</Text>
-              </View>
+              </Pressable>
             ))}
             <Pressable style={[styles.row, { borderBottomWidth: 0 }]} onPress={() => setGroupModal(true)}>
               <Text style={styles.t1}>+ 새 그룹 만들기</Text>

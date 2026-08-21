@@ -18,6 +18,7 @@ export interface Group {
   dnd: boolean;
   subLabel: string;
   friendId?: string | null;
+  members?: { id: string; displayName: string }[];
 }
 
 export type SaveRequestStatus = 'none' | 'pending' | 'approved' | 'rejected';
@@ -45,6 +46,7 @@ export interface InviteLink {
 
 export interface WidgetPhoto {
   senderName: string;
+  groupName: string | null;
   caption: string;
   timeLabel: string;
   photoUrl: string;

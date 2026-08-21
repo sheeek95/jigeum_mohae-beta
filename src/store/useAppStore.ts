@@ -80,6 +80,8 @@ interface AppState {
 
   setDnd: (patch: Partial<DndSettings>) => Promise<void>;
   addGroup: (name: string) => Promise<void>;
+  addGroupMember: (groupId: string, userId: string) => Promise<void>;
+  removeGroupMember: (groupId: string, userId: string) => Promise<void>;
   updateDisplayName: (name: string) => Promise<void>;
 }
 
@@ -106,6 +108,7 @@ function mapGroup(g: ApiGroup): Group {
     dnd: g.dnd,
     subLabel: g.kind === 'GROUP' ? `친구 ${g.memberCount}명 · 공유 허용` : g.dnd ? '방해금지 중 · 알림 지연' : '친구',
     friendId: g.friendId,
+    members: g.members,
   };
 }
 
@@ -142,10 +145,25 @@ function mapWidget(p: ApiWidgetPhoto | null): WidgetPhoto | null {
   if (!p) return null;
   return {
     senderName: p.senderName,
+    groupName: p.groupName,
     caption: p.caption,
     timeLabel: new Date(p.createdAt).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }),
     photoUrl: resolveMediaUrl(p.url),
   };
+}
+
+// Render's free-tier cold start (and mobile networks generally) means two
+// calls to the same refresh*() can resolve out of order — e.g. a slow call
+// issued right after mount can land AFTER a fast one issued by a later user
+// action, silently overwriting fresher state with stale data (this is what
+// made a just-created group "disappear"). Each refresh call takes a ticket
+// and only applies its result if no newer call for the same key has started.
+const latestRequestSeq: Record<string, number> = Object.create(null);
+function takeTicket(key: string): number {
+  return (latestRequestSeq[key] = (latestRequestSeq[key] ?? 0) + 1);
+}
+function isCurrentTicket(key: string, ticket: number): boolean {
+  return latestRequestSeq[key] === ticket;
 }
 
 function mapDnd(d: ApiDnd): DndSettings {
@@ -229,26 +247,34 @@ export const useAppStore = create<AppState>()(
       },
 
       refreshFriends: async () => {
+        const ticket = takeTicket('friends');
         const { friends } = await api.get<{ friends: ApiFriend[] }>('/friends');
+        if (!isCurrentTicket('friends', ticket)) return;
         set({ friends: friends.map(mapFriend) });
       },
 
       refreshGroups: async () => {
+        const ticket = takeTicket('groups');
         const { groups } = await api.get<{ groups: ApiGroup[] }>('/groups');
+        if (!isCurrentTicket('groups', ticket)) return;
         set({ groups: groups.map(mapGroup) });
       },
 
       refreshAlbum: async () => {
+        const ticket = takeTicket('album');
         const [{ items: received }, { items: sent }] = await Promise.all([
           api.get<{ items: ApiReceivedPhoto[] }>('/photos/received'),
           api.get<{ items: ApiSentPhoto[] }>('/photos/sent'),
         ]);
+        if (!isCurrentTicket('album', ticket)) return;
         const merged = [...received.map(mapReceived), ...sent.flatMap(mapSent)].sort((a, b) => b.sentAt - a.sentAt);
         set({ album: merged });
       },
 
       refreshWidget: async () => {
+        const ticket = takeTicket('widget');
         const { photo } = await api.get<{ photo: ApiWidgetPhoto | null }>('/photos/widget/latest');
+        if (!isCurrentTicket('widget', ticket)) return;
         const widgetPhoto = mapWidget(photo);
         set({ widgetPhoto });
         // Push straight to any placed Android home-screen widget too — see
@@ -257,6 +283,7 @@ export const useAppStore = create<AppState>()(
           widgetPhoto && {
             url: widgetPhoto.photoUrl,
             senderName: widgetPhoto.senderName,
+            groupName: widgetPhoto.groupName,
             caption: widgetPhoto.caption,
             timeLabel: widgetPhoto.timeLabel,
           }
@@ -267,7 +294,9 @@ export const useAppStore = create<AppState>()(
       },
 
       refreshInvite: async () => {
+        const ticket = takeTicket('invite');
         const { invite } = await api.get<{ invite: ApiInvite }>('/invites/mine');
+        if (!isCurrentTicket('invite', ticket)) return;
         set({ inviteLink: { code: invite.code, expiresAt: new Date(invite.expiresAt).getTime() } });
       },
 
@@ -351,6 +380,16 @@ export const useAppStore = create<AppState>()(
 
       addGroup: async (name) => {
         await api.post('/groups', { name });
+        await get().refreshGroups();
+      },
+
+      addGroupMember: async (groupId, userId) => {
+        await api.post(`/groups/${groupId}/members`, { userId });
+        await get().refreshGroups();
+      },
+
+      removeGroupMember: async (groupId, userId) => {
+        await api.del(`/groups/${groupId}/members/${userId}`);
         await get().refreshGroups();
       },
 

@@ -88,7 +88,7 @@ photosRouter.post('/', upload.single('photo'), async (req, res) => {
 photosRouter.get('/widget/latest', async (req, res) => {
   const delivery = await prisma.photoDelivery.findFirst({
     where: { userId: req.userId, expiredAt: null, photo: { expiresAt: { gt: new Date() } } },
-    include: { photo: { include: { sender: true } } },
+    include: { photo: { include: { sender: true, group: true } } },
     orderBy: { photo: { createdAt: 'desc' } },
   });
   if (!delivery) {
@@ -101,6 +101,9 @@ photosRouter.get('/widget/latest', async (req, res) => {
       url: `/uploads/${delivery.photo.storageKey}`,
       caption: delivery.photo.caption,
       senderName: delivery.photo.sender.displayName,
+      // Only surfaced for a real multi-friend GROUP — a PERSONAL target's
+      // name would just repeat senderName, so it stays null there.
+      groupName: delivery.photo.group?.kind === 'GROUP' ? delivery.photo.group.name : null,
       createdAt: delivery.photo.createdAt,
     },
   });
