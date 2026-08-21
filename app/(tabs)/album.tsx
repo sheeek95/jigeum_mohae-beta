@@ -1,7 +1,8 @@
+import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ScreenGradient } from '../../src/components/ScreenGradient';
@@ -68,9 +69,17 @@ export default function AlbumScreen() {
   const album = useAppStore((s) => s.album);
   const requestSave = useAppStore((s) => s.requestSave);
   const resolveSave = useAppStore((s) => s.resolveSave);
+  const deleteSentPhoto = useAppStore((s) => s.deleteSentPhoto);
   const refreshAlbum = useAppStore((s) => s.refreshAlbum);
   const authStatus = useAppStore((s) => s.authStatus);
   const [, forceTick] = useState(0);
+
+  function confirmDelete(photoId: string, peerName: string) {
+    Alert.alert('사진을 삭제할까요?', `${peerName}에게 보낸 사진이 상대 화면에서도 바로 사라져요.`, [
+      { text: '취소', style: 'cancel' },
+      { text: '삭제', style: 'destructive', onPress: () => deleteSentPhoto(photoId) },
+    ]);
+  }
 
   // Re-render periodically so the 24h countdown stays live.
   useEffect(() => {
@@ -108,7 +117,18 @@ export default function AlbumScreen() {
                     <Text style={styles.peer}>
                       {item.direction === 'received' ? `${item.peerName} 보냄` : `${item.peerName}에게 보냄`}
                     </Text>
-                    <Text style={styles.time}>{formatRelative(item.sentAt)}</Text>
+                    <View style={styles.cardTopRight}>
+                      <Text style={styles.time}>{formatRelative(item.sentAt)}</Text>
+                      {item.direction === 'sent' && (
+                        <Pressable
+                          style={styles.deleteBtn}
+                          hitSlop={8}
+                          onPress={() => confirmDelete(item.photoId, item.peerName)}
+                        >
+                          <Ionicons name="trash-outline" size={14} color={colors.textDim} />
+                        </Pressable>
+                      )}
+                    </View>
                   </View>
                   <Text style={styles.caption} numberOfLines={1}>
                     &ldquo;{item.caption || '(캡션 없음)'}&rdquo;
@@ -148,9 +168,11 @@ const styles = StyleSheet.create({
   },
   thumb: { width: 64, height: 64, borderRadius: 14, backgroundColor: colors.surfaceHi },
   cardBody: { flex: 1, justifyContent: 'center', gap: 4 },
-  cardTop: { flexDirection: 'row', justifyContent: 'space-between' },
+  cardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  cardTopRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   peer: { fontSize: 13, fontWeight: '700', color: colors.textHi },
   time: { fontSize: 10.5, color: colors.textDim },
+  deleteBtn: { padding: 2 },
   caption: { fontSize: 12, color: colors.textMid },
   cardBottom: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 },
   expire: { fontSize: 10, color: colors.textDim, fontWeight: '600' },

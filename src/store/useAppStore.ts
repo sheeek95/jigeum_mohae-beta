@@ -76,6 +76,7 @@ interface AppState {
 
   requestSave: (photoId: string) => Promise<void>;
   resolveSave: (photoId: string, targetUserId: string, approve: boolean) => Promise<void>;
+  deleteSentPhoto: (photoId: string) => Promise<void>;
 
   setDnd: (patch: Partial<DndSettings>) => Promise<void>;
   addGroup: (name: string) => Promise<void>;
@@ -335,6 +336,11 @@ export const useAppStore = create<AppState>()(
 
       resolveSave: async (photoId, targetUserId, approve) => {
         await api.post(`/photos/${photoId}/deliveries/${targetUserId}/resolve-save`, { approve });
+        await get().refreshAlbum();
+      },
+
+      deleteSentPhoto: async (photoId) => {
+        await api.del(`/photos/${photoId}`);
         await get().refreshAlbum();
       },
 

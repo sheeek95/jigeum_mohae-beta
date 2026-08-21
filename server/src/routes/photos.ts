@@ -168,6 +168,17 @@ photosRouter.post('/:photoId/deliveries/:userId/resolve-save', async (req, res) 
   res.json({ delivery: updated });
 });
 
+// Lets the sender pull back a photo they shared before its 24h TTL expires
+// (spec ask: "촬영한 사진을 찍은 사람은 삭제할 수 있도록").
+photosRouter.delete('/:photoId', async (req, res) => {
+  const photo = await prisma.photo.findUnique({ where: { id: req.params.photoId } });
+  if (!photo) throw notFound('사진');
+  if (photo.senderId !== req.userId) throw forbidden('보낸 사람만 삭제할 수 있어요');
+  await prisma.photo.delete({ where: { id: photo.id } }); // cascades to deliveries
+  await deletePhotoFile(photo.storageKey);
+  res.status(204).end();
+});
+
 // Best-effort cleanup used by the TTL job when a Photo has zero remaining
 // (non-expired) deliveries — removes the file from disk too.
 export async function deletePhotoFile(storageKey: string) {
