@@ -140,7 +140,7 @@ export default function HomeScreen() {
         <View style={styles.nav}>
           <Text style={styles.navTitle}>홈</Text>
           <Pressable style={styles.navIcon} onPress={() => router.push('/add-friend')}>
-            <Ionicons name="add" size={18} color={colors.textMid} />
+            <Ionicons name="person-add-outline" size={16} color={colors.textMid} />
           </Pressable>
         </View>
 
