@@ -17,14 +17,17 @@ export function PrimaryButton({ children, onPress, disabled, loading, style }: P
       disabled={disabled || loading}
       style={({ pressed }) => [
         styles.base,
-        { backgroundColor: colors.yellow, opacity: disabled ? 0.5 : pressed ? 0.85 : 1 },
+        // Explicit disabled colors rather than dimming the whole group's
+        // opacity — composited-opacity text has shown up washed out to the
+        // point of looking blank on some Android renders.
+        { backgroundColor: disabled ? colors.surfaceHi : colors.yellow, opacity: !disabled && pressed ? 0.85 : 1 },
         style,
       ]}
     >
       {loading ? (
         <ActivityIndicator color={colors.yellowText} />
       ) : (
-        <Text style={[styles.text, { color: colors.yellowText }]}>{children}</Text>
+        <Text style={[styles.text, { color: disabled ? colors.textDim : colors.yellowText }]}>{children}</Text>
       )}
     </Pressable>
   );
@@ -37,11 +40,11 @@ export function CoralButton({ children, onPress, disabled, style }: PropsWithChi
       disabled={disabled}
       style={({ pressed }) => [
         styles.base,
-        { backgroundColor: colors.coral, opacity: disabled ? 0.5 : pressed ? 0.85 : 1 },
+        { backgroundColor: disabled ? colors.surfaceHi : colors.coral, opacity: !disabled && pressed ? 0.85 : 1 },
         style,
       ]}
     >
-      <Text style={[styles.text, { color: colors.coralText }]}>{children}</Text>
+      <Text style={[styles.text, { color: disabled ? colors.textDim : colors.coralText }]}>{children}</Text>
     </Pressable>
   );
 }
@@ -53,7 +56,7 @@ export function GhostButton({ children, onPress, disabled, style }: PropsWithChi
       disabled={disabled}
       style={({ pressed }) => [
         styles.base,
-        { backgroundColor: colors.surface, opacity: disabled ? 0.5 : pressed ? 0.85 : 1 },
+        { backgroundColor: colors.surface, opacity: !disabled && pressed ? 0.85 : disabled ? 0.5 : 1 },
         style,
       ]}
     >

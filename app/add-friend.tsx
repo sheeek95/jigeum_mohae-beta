@@ -140,7 +140,7 @@ export default function AddFriendScreen() {
                 <TextInput
                   value={codeInput}
                   onChangeText={setCodeInput}
-                  placeholder="8f3k2a91"
+                  placeholder="초대코드를 입력해주세요"
                   placeholderTextColor={colors.textDim}
                   style={styles.input}
                   autoCapitalize="none"
