@@ -30,14 +30,13 @@ export interface ApiGroup {
 
 export interface ApiInvite {
   code: string;
-  expiresAt: string;
 }
 
 export interface ApiInvitePreview {
   code: string;
-  expiresAt: string;
   valid: boolean;
   isSelf: boolean;
+  alreadyFriends: boolean;
   inviter: { id: string; displayName: string; avatarStart: string; avatarEnd: string };
 }
 

@@ -298,7 +298,7 @@ export const useAppStore = create<AppState>()(
         const ticket = takeTicket('invite');
         const { invite } = await api.get<{ invite: ApiInvite }>('/invites/mine');
         if (!isCurrentTicket('invite', ticket)) return;
-        set({ inviteLink: { code: invite.code, expiresAt: new Date(invite.expiresAt).getTime() } });
+        set({ inviteLink: { code: invite.code } });
       },
 
       poke: async (userId) => {

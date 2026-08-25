@@ -42,7 +42,6 @@ export interface AlbumItem {
 
 export interface InviteLink {
   code: string;
-  expiresAt: number;
 }
 
 export interface WidgetPhoto {

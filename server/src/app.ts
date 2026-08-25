@@ -27,6 +27,16 @@ app.use('/uploads', express.static(UPLOAD_DIR, { maxAge: '1d', immutable: true }
 
 app.get('/health', (_req, res) => res.json({ ok: true }));
 
+// Short, our-own-domain redirect for the beta install link shared in invite
+// messages — the real target (an expo.dev build page) is long and cannot be
+// shortened at the source, so this exists purely so the shared link itself
+// is short. Set APK_DOWNLOAD_URL in the Render dashboard when a new build's
+// download URL replaces this one; no code change or redeploy needed for that.
+const APK_DOWNLOAD_URL =
+  process.env.APK_DOWNLOAD_URL ??
+  'https://expo.dev/accounts/sheeeks-team/projects/jigeummohae/builds/2a0a8906-6f91-47a5-a556-58334ce16a03';
+app.get('/i/:code', (_req, res) => res.redirect(302, APK_DOWNLOAD_URL));
+
 app.use('/auth', authRouter);
 app.use('/invites', invitesRouter);
 app.use('/friends', friendsRouter);

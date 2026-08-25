@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 
 import { randomAvatarGradient } from '../lib/avatar.js';
+import { generateInviteCode } from '../lib/inviteCode.js';
 import { signToken } from '../lib/jwt.js';
 import { prisma } from '../lib/prisma.js';
 import { requireAuth } from '../middleware/auth.js';
@@ -27,15 +28,27 @@ authRouter.post('/device', async (req, res) => {
   }
 
   const [avatarStart, avatarEnd] = randomAvatarGradient();
-  const user = await prisma.user.create({
-    data: {
-      deviceId,
-      displayName: displayName ?? `게스트${Math.floor(1000 + Math.random() * 9000)}`,
-      avatarStart,
-      avatarEnd,
-      dndSetting: { create: {} },
-    },
-  });
+  // Collision odds on a 6-byte code are negligible, but retry rather than
+  // 500 on the once-in-a-blue-moon unique-constraint hit.
+  let user;
+  for (let attempt = 0; ; attempt++) {
+    try {
+      user = await prisma.user.create({
+        data: {
+          deviceId,
+          displayName: displayName ?? `게스트${Math.floor(1000 + Math.random() * 9000)}`,
+          avatarStart,
+          avatarEnd,
+          inviteCode: generateInviteCode(),
+          dndSetting: { create: {} },
+        },
+      });
+      break;
+    } catch (err) {
+      if (attempt < 3 && err instanceof Error && 'code' in err && err.code === 'P2002') continue;
+      throw err;
+    }
+  }
   res.status(201).json({ token: signToken(user.id), user });
 });
 

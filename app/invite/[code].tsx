@@ -86,7 +86,7 @@ export default function InviteAcceptScreen() {
             <Text style={styles.errorText}>{error ?? '유효하지 않은 초대예요'}</Text>
           ) : !pendingInvite.valid ? (
             <Text style={styles.errorText}>
-              {pendingInvite.isSelf ? '내가 만든 링크는 사용할 수 없어요' : '만료되었거나 이미 사용된 링크예요'}
+              {pendingInvite.isSelf ? '내 코드는 사용할 수 없어요' : '이미 친구예요'}
             </Text>
           ) : (
             <View style={styles.incomingCard}>

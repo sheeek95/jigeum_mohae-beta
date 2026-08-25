@@ -18,11 +18,13 @@ model User {
   displayName  String
   avatarStart  String   @default("#FF9AA6")
   avatarEnd    String   @default("#8A6BC7")
+  // Permanent, personal friend-add code — set once at account creation and
+  // never rotated or expired (spec change: a per-user fixed code is simpler
+  // to share than a link that had to be regenerated after every single use).
+  inviteCode   String   @unique
   createdAt    DateTime @default(now())
 
   dndSetting        DndSetting?
-  sentInvites       InviteLink[]      @relation("InviteCreatedBy")
-  usedInvite        InviteLink?       @relation("InviteUsedBy")
   friendshipsA      Friendship[]      @relation("FriendshipUserA")
   friendshipsB      Friendship[]      @relation("FriendshipUserB")
   ownedGroups       Group[]           @relation("GroupOwner")
@@ -42,22 +44,6 @@ model DndSetting {
   scheduleEnabled Boolean @default(false)
   scheduleStart   String  @default("23:00") // "HH:mm", local device time
   scheduleEnd     String  @default("08:00")
-}
-
-// 7-day, single-use invite link. Accepting it creates an immediate Friendship
-// (the mockup's incoming-invite screen has a single accept action, so there is
-// no separate double-confirmation step — the inviter already consented by
-// generating and sharing the link).
-model InviteLink {
-  id          String    @id @default(cuid())
-  code        String    @unique
-  createdById String
-  createdBy   User      @relation("InviteCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
-  createdAt   DateTime  @default(now())
-  expiresAt   DateTime
-  usedById    String?   @unique
-  usedBy      User?     @relation("InviteUsedBy", fields: [usedById], references: [id])
-  usedAt      DateTime?
 }
 
 model Friendship {
