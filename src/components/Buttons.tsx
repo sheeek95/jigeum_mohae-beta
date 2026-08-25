@@ -27,7 +27,7 @@ export function PrimaryButton({ children, onPress, disabled, loading, style }: P
       {loading ? (
         <ActivityIndicator color={colors.yellowText} />
       ) : (
-        <Text style={[styles.text, { color: disabled ? colors.textDim : colors.yellowText }]}>{children}</Text>
+        <Text style={[styles.text, { color: disabled ? colors.textMid : colors.yellowText }]}>{children}</Text>
       )}
     </Pressable>
   );
@@ -44,7 +44,7 @@ export function CoralButton({ children, onPress, disabled, style }: PropsWithChi
         style,
       ]}
     >
-      <Text style={[styles.text, { color: disabled ? colors.textDim : colors.coralText }]}>{children}</Text>
+      <Text style={[styles.text, { color: disabled ? colors.textMid : colors.coralText }]}>{children}</Text>
     </Pressable>
   );
 }
