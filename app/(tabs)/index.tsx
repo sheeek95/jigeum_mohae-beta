@@ -150,8 +150,13 @@ export default function HomeScreen() {
         </View>
 
         {groups.length === 0 ? (
-          <View style={styles.empty}>
-            <Text style={styles.emptyText}>아직 그룹이 없어요{'\n'}설정 탭에서 그룹을 만들어보세요</Text>
+          <View style={styles.emptyWrap}>
+            <View style={styles.block}>
+              <Text style={styles.infoLine}>아직 친구가 없어요{'\n'}친구를 추가해 순간을 공유해보세요!</Text>
+              <Pressable style={[styles.row, { borderBottomWidth: 0 }]} onPress={() => router.push('/add-friend')}>
+                <Text style={styles.t1}>+ 친구 추가</Text>
+              </Pressable>
+            </View>
           </View>
         ) : (
           <ScrollView contentContainerStyle={styles.list}>
@@ -172,8 +177,26 @@ const styles = StyleSheet.create({
   timeHero: { alignItems: 'center', marginTop: 10, marginBottom: 14 },
   time: { fontSize: 40, fontWeight: '700', color: colors.textHi, letterSpacing: -1 },
   date: { fontSize: 12.5, color: colors.textMid, marginTop: 2 },
-  empty: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 },
-  emptyText: { color: colors.textDim, fontSize: 13, textAlign: 'center', lineHeight: 20 },
+  emptyWrap: { paddingTop: 10 },
+  block: {
+    marginHorizontal: 18,
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.line,
+    overflow: 'hidden',
+  },
+  infoLine: { fontSize: 10.5, color: colors.textDim, lineHeight: 17, padding: 15 },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 15,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.line,
+  },
+  t1: { fontSize: 13, fontWeight: '700', color: colors.textHi },
   list: { paddingHorizontal: 18, paddingBottom: 24, gap: 10 },
   card: {
     backgroundColor: colors.surface,
