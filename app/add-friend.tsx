@@ -146,6 +146,11 @@ export default function AddFriendScreen() {
                   autoCapitalize="none"
                   autoCorrect={false}
                 />
+                {codeInput.length > 0 && (
+                  <Pressable onPress={() => setCodeInput('')} hitSlop={8}>
+                    <Ionicons name="close-circle" size={18} color={colors.textDim} />
+                  </Pressable>
+                )}
               </View>
               <PrimaryButton onPress={openInvite} disabled={!codeInput.trim()} style={{ marginTop: 12 }}>
                 초대 코드 등록
