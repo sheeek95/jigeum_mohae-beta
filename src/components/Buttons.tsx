@@ -67,7 +67,11 @@ export function GhostButton({ children, onPress, disabled, style }: PropsWithChi
 
 const styles = StyleSheet.create({
   base: {
-    flex: 1,
+    // No flex: 1 here — it's only safe inside a flexDirection: 'row'
+    // sibling group (pass it via `style` at the call site there). On a
+    // standalone button in a plain column View, flex: 1 can collapse the
+    // Pressable's content box to zero height on Android, painting the
+    // background but leaving no room for the label to render.
     paddingVertical: 14,
     borderRadius: radius.md + 2,
     alignItems: 'center',

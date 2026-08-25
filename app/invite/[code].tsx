@@ -114,8 +114,8 @@ export default function InviteAcceptScreen() {
               )}
 
               <View style={styles.incomingActions}>
-                <GhostButton onPress={decline} disabled={busy}>거절</GhostButton>
-                <CoralButton onPress={accept} disabled={busy}>{busy ? '처리 중…' : '친구 수락'}</CoralButton>
+                <GhostButton onPress={decline} disabled={busy} style={{ flex: 1 }}>거절</GhostButton>
+                <CoralButton onPress={accept} disabled={busy} style={{ flex: 1 }}>{busy ? '처리 중…' : '친구 수락'}</CoralButton>
               </View>
             </View>
           )}

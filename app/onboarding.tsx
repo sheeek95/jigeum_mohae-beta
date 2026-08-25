@@ -135,7 +135,10 @@ export default function Onboarding() {
         </View>
 
         <View style={styles.btnRow}>
-          <PrimaryButton onPress={() => (slide === SLIDES.length - 1 ? finish() : goTo(slide + 1))}>
+          <PrimaryButton
+            onPress={() => (slide === SLIDES.length - 1 ? finish() : goTo(slide + 1))}
+            style={{ flex: 1 }}
+          >
             {slide === SLIDES.length - 1 ? '시작하기' : '다음'}
           </PrimaryButton>
         </View>

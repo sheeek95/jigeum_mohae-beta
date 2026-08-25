@@ -87,8 +87,8 @@ export default function CameraScreen() {
           <Text style={styles.permissionTitle}>카메라 권한이 필요해요</Text>
           <Text style={styles.permissionSub}>친구에게 지금 이 순간을 사진으로 보내려면 카메라 접근을 허용해주세요.</Text>
           <View style={styles.permissionActions}>
-            <GhostButton onPress={closeCamera}>닫기</GhostButton>
-            <PrimaryButton onPress={requestPermission}>권한 허용</PrimaryButton>
+            <GhostButton onPress={closeCamera} style={{ flex: 1 }}>닫기</GhostButton>
+            <PrimaryButton onPress={requestPermission} style={{ flex: 1 }}>권한 허용</PrimaryButton>
           </View>
           <Pressable onPress={() => setPhotoUri(writeDemoPhoto())} hitSlop={8}>
             <Text style={styles.demoLink}>카메라 없이 데모로 계속하기</Text>
@@ -120,8 +120,8 @@ export default function CameraScreen() {
         <View style={styles.previewWrap}>
           <Image source={{ uri: photoUri }} style={styles.previewPhoto} contentFit="cover" />
           <SafeAreaView edges={['bottom']} style={styles.previewActions}>
-            <GhostButton onPress={retake}>다시 찍기</GhostButton>
-            <PrimaryButton onPress={confirmAndShare}>확인 · 공유하기</PrimaryButton>
+            <GhostButton onPress={retake} style={{ flex: 1 }}>다시 찍기</GhostButton>
+            <PrimaryButton onPress={confirmAndShare} style={{ flex: 1 }}>확인 · 공유하기</PrimaryButton>
           </SafeAreaView>
         </View>
       )}
