@@ -1,4 +1,3 @@
-import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -70,27 +69,20 @@ export default function SettingsScreen() {
           )}
 
           <SectionLabel style={styles.sectionLabel}>친구 관리</SectionLabel>
-          {friends.length === 0 ? (
-            <Pressable style={styles.emptyFriendsCard} onPress={() => router.push('/add-friend')}>
-              <Ionicons name="person-add-outline" size={18} color={colors.yellow} />
-              <Text style={styles.emptyFriendsText}>친구 추가</Text>
-            </Pressable>
-          ) : (
-            <View style={styles.block}>
-              {friends.map((f) => (
-                <View key={f.id} style={styles.row}>
-                  <View style={styles.personRow}>
-                    <Avatar gradient={f.avatarGradient} size={30} dnd={f.dnd} />
-                    <Text style={styles.t1}>{f.name}</Text>
-                  </View>
-                  <Text style={styles.t2}>{f.statusText}</Text>
+          <View style={styles.block}>
+            {friends.map((f) => (
+              <View key={f.id} style={styles.row}>
+                <View style={styles.personRow}>
+                  <Avatar gradient={f.avatarGradient} size={30} dnd={f.dnd} />
+                  <Text style={styles.t1}>{f.name}</Text>
                 </View>
-              ))}
-              <Pressable style={[styles.row, { borderBottomWidth: 0 }]} onPress={() => router.push('/add-friend')}>
-                <Text style={styles.t1}>+ 친구 추가</Text>
-              </Pressable>
-            </View>
-          )}
+                <Text style={styles.t2}>{f.statusText}</Text>
+              </View>
+            ))}
+            <Pressable style={[styles.row, { borderBottomWidth: 0 }]} onPress={() => router.push('/add-friend')}>
+              <Text style={styles.t1}>+ 친구 추가</Text>
+            </Pressable>
+          </View>
 
           <SectionLabel style={styles.sectionLabel}>그룹 관리</SectionLabel>
           <View style={styles.block}>
@@ -231,19 +223,4 @@ const styles = StyleSheet.create({
   manage: { fontSize: 11, color: colors.textDim },
   infoLine: { fontSize: 10.5, color: colors.textDim, lineHeight: 17, padding: 15 },
   personRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  emptyFriendsCard: {
-    marginHorizontal: 16,
-    marginTop: 6,
-    backgroundColor: 'rgba(255,214,102,0.06)',
-    borderRadius: radius.lg,
-    borderWidth: 1.5,
-    borderColor: 'rgba(255,214,102,0.45)',
-    borderStyle: 'dashed',
-    paddingVertical: 20,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  emptyFriendsText: { fontSize: 13, fontWeight: '700', color: colors.yellow },
 });
