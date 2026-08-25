@@ -10,22 +10,33 @@ import { ScreenGradient } from '../src/components/ScreenGradient';
 import { useAppStore } from '../src/store/useAppStore';
 import { colors, radius } from '../src/theme/tokens';
 
-const INVITE_HOST = 'jigeummohae.app/invite';
-// Beta APK install page (public, no Expo login required) — bundled into the
-// invite share message since jigeummohae.app isn't a real, clickable domain
-// and the app isn't on a store yet, so a friend without it installed has no
-// other way to get it from the link alone.
+// Beta APK install page (public, no Expo login required). There's no real,
+// clickable jigeummohae.app domain and the app isn't on a store yet, so this
+// — not a fake domain — is the one link that's actually worth sharing: it
+// installs the app for someone who doesn't have it, and does no harm for
+// someone who does. The invite code rides along as a utm_campaign param
+// purely for our own reference (no attribution/deferred-deep-link service
+// reads it back) — the code is also shown and shared as plain text below
+// since that's what actually gets typed into "초대 받음" after installing.
 const APK_DOWNLOAD_URL = 'https://expo.dev/accounts/sheeeks-team/projects/jigeummohae/builds/2a0a8906-6f91-47a5-a556-58334ce16a03';
 
+function buildInstallLink(code: string): string {
+  return `${APK_DOWNLOAD_URL}?utm_source=invite&utm_medium=share&utm_campaign=${encodeURIComponent(code)}`;
+}
+
 function extractInviteCode(input: string): string {
-  const trimmed = input.trim().replace(/\/+$/, '');
-  const segments = trimmed.split('/');
+  const trimmed = input.trim();
+  const utmMatch = trimmed.match(/[?&]utm_campaign=([^&]+)/);
+  if (utmMatch) return decodeURIComponent(utmMatch[1]);
+  const withoutQuery = trimmed.split('?')[0].replace(/\/+$/, '');
+  const segments = withoutQuery.split('/');
   return segments[segments.length - 1];
 }
 
 export default function AddFriendScreen() {
   const [tab, setTab] = useState<'send' | 'recv'>('send');
-  const [copied, setCopied] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
+  const [copiedCode, setCopiedCode] = useState(false);
   const [showQr, setShowQr] = useState(false);
   const [codeInput, setCodeInput] = useState('');
 
@@ -37,20 +48,28 @@ export default function AddFriendScreen() {
     if (authStatus === 'ready' && !inviteLink) refreshInvite();
   }, [authStatus, inviteLink, refreshInvite]);
 
-  const link = inviteLink ? `${INVITE_HOST}/${inviteLink.code}` : null;
+  const code = inviteLink?.code ?? null;
+  const installLink = code ? buildInstallLink(code) : null;
 
   async function copyLink() {
-    if (!link) return;
-    await Clipboard.setStringAsync(`https://${link}`);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1600);
+    if (!installLink) return;
+    await Clipboard.setStringAsync(installLink);
+    setCopiedLink(true);
+    setTimeout(() => setCopiedLink(false), 1600);
+  }
+
+  async function copyCode() {
+    if (!code) return;
+    await Clipboard.setStringAsync(code);
+    setCopiedCode(true);
+    setTimeout(() => setCopiedCode(false), 1600);
   }
 
   async function shareLink() {
-    if (!link) return;
+    if (!installLink || !code) return;
     try {
       await Share.share({
-        message: `지금 모해에서 친구 초대를 보냈어요: https://${link}\n\n앱이 없으신가요? 다운로드: ${APK_DOWNLOAD_URL}`,
+        message: `지금 모해에서 친구 초대를 보냈어요!\n\n앱 설치: ${installLink}\n\n설치 후 앱에서 "친구 등록 → 초대 받음"에 이 코드를 입력해주세요: ${code}`,
       });
     } catch {
       // user cancelled — no-op
@@ -84,20 +103,28 @@ export default function AddFriendScreen() {
 
         {tab === 'send' ? (
           <View style={styles.body}>
-            {!link ? (
+            {!installLink || !code ? (
               <ActivityIndicator color={colors.coral} style={{ marginTop: 40 }} />
             ) : (
               <View style={styles.linkCard}>
                 <View style={styles.lcTop}>
-                  <Text style={styles.lcLabel}>내 초대 링크</Text>
+                  <Text style={styles.lcLabel}>앱 설치 링크</Text>
                   <View style={styles.lcExpire}>
                     <Text style={styles.lcExpireText}>7일간 유효</Text>
                   </View>
                 </View>
                 <View style={styles.linkBox}>
-                  <Text style={styles.linkText} numberOfLines={1}>{link}</Text>
-                  <Pressable style={[styles.copyBtn, copied && styles.copyBtnDone]} onPress={copyLink}>
-                    <Text style={styles.copyBtnText}>{copied ? '복사됨 ✓' : '복사'}</Text>
+                  <Text style={styles.linkText} numberOfLines={1}>{installLink}</Text>
+                  <Pressable style={[styles.copyBtn, copiedLink && styles.copyBtnDone]} onPress={copyLink}>
+                    <Text style={styles.copyBtnText}>{copiedLink ? '복사됨 ✓' : '복사'}</Text>
+                  </Pressable>
+                </View>
+
+                <Text style={[styles.lcLabel, { marginTop: 14, marginBottom: 8 }]}>초대 코드</Text>
+                <View style={styles.linkBox}>
+                  <Text style={styles.linkText} numberOfLines={1}>{code}</Text>
+                  <Pressable style={[styles.copyBtn, copiedCode && styles.copyBtnDone]} onPress={copyCode}>
+                    <Text style={styles.copyBtnText}>{copiedCode ? '복사됨 ✓' : '복사'}</Text>
                   </Pressable>
                 </View>
 
@@ -130,8 +157,8 @@ export default function AddFriendScreen() {
                 )}
 
                 <Text style={styles.linkNote}>
-                  이 링크로 들어온 사람은 자동으로 친구 요청을 보내요. 수락하기 전까지는 서로의 위젯이 보이지
-                  않아요. 링크는 최대 7일간, 1명만 사용할 수 있어요.
+                  친구가 링크로 앱을 설치한 뒤, 앱에서 "친구 등록 → 초대 받음"에 위 코드를 입력하면 친구 요청이
+                  가요. 수락하기 전까지는 서로의 위젯이 보이지 않아요. 코드는 최대 7일간, 1명만 사용할 수 있어요.
                 </Text>
               </View>
             )}
@@ -139,12 +166,12 @@ export default function AddFriendScreen() {
         ) : (
           <View style={styles.body}>
             <View style={styles.linkCard}>
-              <Text style={styles.lcLabel}>받은 초대 링크나 코드를 붙여넣으세요</Text>
+              <Text style={styles.lcLabel}>받은 초대 코드를 입력하세요</Text>
               <View style={[styles.linkBox, { marginTop: 10 }]}>
                 <TextInput
                   value={codeInput}
                   onChangeText={setCodeInput}
-                  placeholder="jigeummohae.app/invite/8f3k2a91"
+                  placeholder="8f3k2a91"
                   placeholderTextColor={colors.textDim}
                   style={styles.input}
                   autoCapitalize="none"
@@ -155,8 +182,7 @@ export default function AddFriendScreen() {
                 초대 확인하기
               </PrimaryButton>
               <Text style={styles.linkNote}>
-                카카오톡이나 메시지로 받은 초대 링크를 탭하면 이 화면 없이 바로 열려요. 텍스트로만 전달받았을 때
-                여기에 붙여넣어주세요.
+                친구가 카카오톡이나 메시지로 보낸 코드를 여기에 붙여넣으면 친구 요청을 보낼 수 있어요.
               </Text>
             </View>
           </View>
