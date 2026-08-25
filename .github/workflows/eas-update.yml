@@ -41,4 +41,10 @@ jobs:
       - run: npm ci
 
       - name: Publish OTA update
-        run: eas update --channel preview --message "${{ github.event.head_commit.message }}" --non-interactive
+        # The commit message is passed through an env var rather than interpolated
+        # straight into the run: string — a message containing a literal " or `
+        # (both appear in normal commit messages here) would otherwise break out
+        # of the shell quoting and get re-parsed as extra eas-cli arguments.
+        env:
+          COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+        run: eas update --channel preview --message "$COMMIT_MESSAGE" --non-interactive
