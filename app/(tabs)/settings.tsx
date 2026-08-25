@@ -12,6 +12,7 @@ import { useAppStore } from '../../src/store/useAppStore';
 import { colors, radius } from '../../src/theme/tokens';
 
 const MAX_GROUPS = 3;
+const MAX_FRIENDS = 20;
 
 export default function SettingsScreen() {
   const me = useAppStore((s) => s.me);
@@ -79,9 +80,13 @@ export default function SettingsScreen() {
                 <Text style={styles.t2}>{f.statusText}</Text>
               </View>
             ))}
-            <Pressable style={[styles.row, { borderBottomWidth: 0 }]} onPress={() => router.push('/add-friend')}>
-              <Text style={styles.t1}>+ 친구 추가</Text>
-            </Pressable>
+            {friends.length < MAX_FRIENDS ? (
+              <Pressable style={[styles.row, { borderBottomWidth: 0 }]} onPress={() => router.push('/add-friend')}>
+                <Text style={styles.t1}>+ 친구 추가</Text>
+              </Pressable>
+            ) : (
+              <Text style={[styles.infoLine, { paddingVertical: 14 }]}>친구는 최대 {MAX_FRIENDS}명까지 추가할 수 있어요</Text>
+            )}
           </View>
 
           <SectionLabel style={styles.sectionLabel}>그룹 관리</SectionLabel>

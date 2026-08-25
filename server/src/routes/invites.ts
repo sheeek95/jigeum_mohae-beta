@@ -8,6 +8,12 @@ import { requireAuth } from '../middleware/auth.js';
 export const invitesRouter = Router();
 invitesRouter.use(requireAuth);
 
+const MAX_FRIENDS = 20;
+
+function countFriends(userId: string) {
+  return prisma.friendship.count({ where: { OR: [{ userAId: userId }, { userBId: userId }] } });
+}
+
 // My own permanent friend-add code — set once at account creation (see
 // routes/auth.ts), never rotated or expired.
 invitesRouter.get('/mine', async (req, res) => {
@@ -46,6 +52,8 @@ invitesRouter.post('/:code/accept', async (req, res) => {
   if (!inviter) throw notFound('초대 코드');
   if (inviter.id === req.userId) throw badRequest('내 코드는 사용할 수 없어요');
   if (await findFriendship(inviter.id, req.userId)) throw badRequest('이미 친구예요');
+  if ((await countFriends(req.userId)) >= MAX_FRIENDS) throw badRequest(`친구는 최대 ${MAX_FRIENDS}명까지 추가할 수 있어요`);
+  if ((await countFriends(inviter.id)) >= MAX_FRIENDS) throw badRequest('상대방의 친구 목록이 가득 찼어요');
 
   const [userAId, userBId] = [inviter.id, req.userId].sort();
 
