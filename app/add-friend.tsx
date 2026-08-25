@@ -55,7 +55,7 @@ export default function AddFriendScreen() {
     if (!installLink || !code) return;
     try {
       await Share.share({
-        message: `지금 모해에서 친구 초대를 보냈어요!\n\n앱 설치: ${installLink}\n\n설치 후 앱에서 "친구 등록 → 초대 받음"에 이 코드를 입력해주세요: ${code}`,
+        message: `지금 모해에서 친구 초대를 보냈어요!\n\n🔗앱 설치: ${installLink}\n\n설치 후 앱에서 친구 등록의 초대 받음 페이지에서 [ 초대 코드: ${code} ]를 입력해주세요`,
       });
     } catch {
       // user cancelled — no-op
