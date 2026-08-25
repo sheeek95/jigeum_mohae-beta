@@ -81,6 +81,7 @@ export interface ApiSentPhoto {
   photoId: string;
   url: string;
   caption: string;
+  groupId: string | null;
   targetName: string;
   createdAt: string;
   expiresAt: string;

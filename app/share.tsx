@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -13,11 +13,12 @@ import { useAppStore } from '../src/store/useAppStore';
 import { colors, radius } from '../src/theme/tokens';
 
 export default function ShareScreen() {
+  const { presetGroupId } = useLocalSearchParams<{ presetGroupId?: string }>();
   const groups = useAppStore((s) => s.groups);
   const capturedPhoto = useAppStore((s) => s.capturedPhoto);
   const shareToTargets = useAppStore((s) => s.shareToTargets);
 
-  const [selected, setSelected] = useState<Set<string>>(() => new Set());
+  const [selected, setSelected] = useState<Set<string>>(() => new Set(presetGroupId ? [presetGroupId] : []));
   const [toastVisible, setToastVisible] = useState(false);
   const [sharing, setSharing] = useState(false);
   const [error, setError] = useState<string | null>(null);

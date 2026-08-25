@@ -140,6 +140,7 @@ photosRouter.get('/sent', async (req, res) => {
       photoId: p.id,
       url: `/uploads/${p.storageKey}`,
       caption: p.caption,
+      groupId: p.groupId,
       targetName: p.group?.name ?? '알 수 없음',
       createdAt: p.createdAt,
       expiresAt: p.expiresAt,

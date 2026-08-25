@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { File, Paths } from 'expo-file-system';
 import { Image } from 'expo-image';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -25,6 +25,7 @@ function writeDemoPhoto(): string {
 }
 
 export default function CameraScreen() {
+  const { presetGroupId } = useLocalSearchParams<{ presetGroupId?: string }>();
   const [permission, requestPermission] = useCameraPermissions();
   const cameraRef = useRef<CameraView>(null);
   const [photoUri, setPhotoUri] = useState<string | null>(null);
@@ -71,7 +72,7 @@ export default function CameraScreen() {
   function confirmAndShare() {
     if (!photoUri) return;
     setCapturedPhoto({ uri: photoUri, takenAt: Date.now() });
-    router.replace('/share');
+    router.replace(presetGroupId ? { pathname: '/share', params: { presetGroupId } } : '/share');
   }
 
   if (!permission) {

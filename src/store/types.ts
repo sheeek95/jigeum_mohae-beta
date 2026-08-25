@@ -37,6 +37,7 @@ export interface AlbumItem {
   expiresAt: number;
   saveStatus: SaveRequestStatus;
   targetUserId?: string; // sent items only — who to approve/reject for
+  groupId?: string | null; // sent items only — which of my groups this went to
 }
 
 export interface InviteLink {

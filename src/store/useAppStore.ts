@@ -138,6 +138,7 @@ function mapSent(p: ApiSentPhoto): AlbumItem[] {
     expiresAt: new Date(p.expiresAt).getTime(),
     saveStatus: d.saveStatus.toLowerCase() as SaveRequestStatus,
     targetUserId: d.userId,
+    groupId: p.groupId,
   }));
 }
 
