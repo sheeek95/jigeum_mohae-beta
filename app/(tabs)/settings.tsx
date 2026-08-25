@@ -1,6 +1,7 @@
+import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Avatar } from '../../src/components/Avatar';
@@ -11,8 +12,11 @@ import { SwitchToggle } from '../../src/components/SwitchToggle';
 import { useAppStore } from '../../src/store/useAppStore';
 import { colors, radius } from '../../src/theme/tokens';
 
+const MAX_GROUPS = 3;
+
 export default function SettingsScreen() {
   const me = useAppStore((s) => s.me);
+  const friends = useAppStore((s) => s.friends);
   const allGroups = useAppStore((s) => s.groups);
   const groups = useMemo(() => allGroups.filter((g) => g.kind === 'group'), [allGroups]);
   const dnd = useAppStore((s) => s.dnd);
@@ -20,6 +24,7 @@ export default function SettingsScreen() {
   const addGroup = useAppStore((s) => s.addGroup);
   const updateDisplayName = useAppStore((s) => s.updateDisplayName);
   const refreshGroups = useAppStore((s) => s.refreshGroups);
+  const refreshFriends = useAppStore((s) => s.refreshFriends);
   const authStatus = useAppStore((s) => s.authStatus);
   const authError = useAppStore((s) => s.authError);
   const apiUrl = useAppStore((s) => s.apiUrl);
@@ -31,9 +36,20 @@ export default function SettingsScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      if (authStatus === 'ready') refreshGroups();
-    }, [authStatus, refreshGroups])
+      if (authStatus === 'ready') {
+        refreshGroups();
+        refreshFriends();
+      }
+    }, [authStatus, refreshGroups, refreshFriends])
   );
+
+  async function handleCreateGroup(name: string) {
+    try {
+      await addGroup(name);
+    } catch (err) {
+      Alert.alert('그룹을 만들지 못했어요', err instanceof Error ? err.message : undefined);
+    }
+  }
 
   return (
     <ScreenGradient glow="coral">
@@ -53,6 +69,29 @@ export default function SettingsScreen() {
             </Pressable>
           )}
 
+          <SectionLabel style={styles.sectionLabel}>친구 관리</SectionLabel>
+          {friends.length === 0 ? (
+            <Pressable style={styles.emptyFriendsCard} onPress={() => router.push('/add-friend')}>
+              <Ionicons name="person-add-outline" size={18} color={colors.yellow} />
+              <Text style={styles.emptyFriendsText}>친구 추가</Text>
+            </Pressable>
+          ) : (
+            <View style={styles.block}>
+              {friends.map((f) => (
+                <View key={f.id} style={styles.row}>
+                  <View style={styles.personRow}>
+                    <Avatar gradient={f.avatarGradient} size={30} dnd={f.dnd} />
+                    <Text style={styles.t1}>{f.name}</Text>
+                  </View>
+                  <Text style={styles.t2}>{f.statusText}</Text>
+                </View>
+              ))}
+              <Pressable style={[styles.row, { borderBottomWidth: 0 }]} onPress={() => router.push('/add-friend')}>
+                <Text style={styles.t1}>+ 친구 추가</Text>
+              </Pressable>
+            </View>
+          )}
+
           <SectionLabel style={styles.sectionLabel}>그룹 관리</SectionLabel>
           <View style={styles.block}>
             {groups.map((g) => (
@@ -68,9 +107,13 @@ export default function SettingsScreen() {
                 <Text style={styles.manage}>관리 ›</Text>
               </Pressable>
             ))}
-            <Pressable style={[styles.row, { borderBottomWidth: 0 }]} onPress={() => setGroupModal(true)}>
-              <Text style={styles.t1}>+ 새 그룹 만들기</Text>
-            </Pressable>
+            {groups.length < MAX_GROUPS ? (
+              <Pressable style={[styles.row, { borderBottomWidth: 0 }]} onPress={() => setGroupModal(true)}>
+                <Text style={styles.t1}>+ 새 그룹 만들기</Text>
+              </Pressable>
+            ) : (
+              <Text style={[styles.infoLine, { paddingVertical: 14 }]}>그룹은 최대 {MAX_GROUPS}개까지 만들 수 있어요</Text>
+            )}
           </View>
 
           <SectionLabel style={styles.sectionLabel}>방해금지</SectionLabel>
@@ -119,7 +162,7 @@ export default function SettingsScreen() {
           onCancel={() => setGroupModal(false)}
           onConfirm={(name) => {
             setGroupModal(false);
-            addGroup(name);
+            handleCreateGroup(name);
           }}
         />
         <PromptModal
@@ -187,4 +230,20 @@ const styles = StyleSheet.create({
   t2: { fontSize: 10.5, color: colors.textDim, marginTop: 2 },
   manage: { fontSize: 11, color: colors.textDim },
   infoLine: { fontSize: 10.5, color: colors.textDim, lineHeight: 17, padding: 15 },
+  personRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  emptyFriendsCard: {
+    marginHorizontal: 16,
+    marginTop: 6,
+    backgroundColor: 'rgba(255,214,102,0.06)',
+    borderRadius: radius.lg,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,214,102,0.45)',
+    borderStyle: 'dashed',
+    paddingVertical: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  emptyFriendsText: { fontSize: 13, fontWeight: '700', color: colors.yellow },
 });

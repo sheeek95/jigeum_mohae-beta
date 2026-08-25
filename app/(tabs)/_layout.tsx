@@ -30,7 +30,7 @@ export default function TabsLayout() {
       }}>
       <Tabs.Screen
         name="index"
-        options={{ title: '위젯', tabBarIcon: ({ color, size }) => <Ionicons name="apps-outline" color={color} size={size} /> }}
+        options={{ title: '홈', tabBarIcon: ({ color, size }) => <Ionicons name="apps-outline" color={color} size={size} /> }}
       />
       <Tabs.Screen
         name="poke"

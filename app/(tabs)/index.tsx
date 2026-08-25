@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
@@ -46,6 +47,13 @@ export default function HomeScreen() {
   return (
     <ScreenGradient glow="yellow">
       <SafeAreaView style={{ flex: 1 }} edges={['top']}>
+        <View style={styles.nav}>
+          <Text style={styles.navTitle}>홈</Text>
+          <Pressable style={styles.navIcon} onPress={() => router.push('/add-friend')}>
+            <Ionicons name="add" size={18} color={colors.textMid} />
+          </Pressable>
+        </View>
+
         <View style={styles.body}>
           <View style={styles.timeHero}>
             <Text style={styles.time}>{hh}:{mm}</Text>
@@ -94,6 +102,9 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
+  nav: { paddingHorizontal: 18, paddingTop: 14, paddingBottom: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  navTitle: { fontSize: 18, fontWeight: '800', color: colors.textHi },
+  navIcon: { width: 32, height: 32, borderRadius: 10, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },
   body: { flex: 1, paddingHorizontal: 18, paddingTop: 8, paddingBottom: 20 },
   timeHero: { alignItems: 'center', marginVertical: 18 },
   time: { fontSize: 48, fontWeight: '700', color: colors.textHi, letterSpacing: -1 },

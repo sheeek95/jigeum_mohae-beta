@@ -9,6 +9,7 @@ export const groupsRouter = Router();
 groupsRouter.use(requireAuth);
 
 const MAX_GROUP_MEMBERS = 10; // spec: 그룹당 최대 8~10명
+const MAX_GROUPS_PER_USER = 3;
 
 groupsRouter.get('/', async (req, res) => {
   const groups = await prisma.group.findMany({
@@ -40,6 +41,8 @@ const createSchema = z.object({ name: z.string().min(1).max(30) });
 
 groupsRouter.post('/', async (req, res) => {
   const { name } = createSchema.parse(req.body);
+  const groupCount = await prisma.group.count({ where: { ownerId: req.userId, kind: 'GROUP' } });
+  if (groupCount >= MAX_GROUPS_PER_USER) throw badRequest(`그룹은 최대 ${MAX_GROUPS_PER_USER}개까지 만들 수 있어요`);
   const group = await prisma.group.create({ data: { ownerId: req.userId, name, kind: 'GROUP' } });
   res.status(201).json({ group });
 });

@@ -96,6 +96,10 @@ export default function GroupManageScreen() {
                   </View>
                 ))
               )}
+              {/* 그룹에 넣고 싶은 사람이 아직 친구가 아닐 때 — 여기서 바로 초대로 이어줌 */}
+              <Pressable style={[styles.row, { borderBottomWidth: 0 }]} onPress={() => router.push('/add-friend')}>
+                <Text style={styles.t1}>+ 새 친구 초대</Text>
+              </Pressable>
             </View>
           </ScrollView>
         )}
