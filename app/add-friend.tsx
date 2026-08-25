@@ -11,6 +11,11 @@ import { useAppStore } from '../src/store/useAppStore';
 import { colors, radius } from '../src/theme/tokens';
 
 const INVITE_HOST = 'jigeummohae.app/invite';
+// Beta APK install page (public, no Expo login required) — bundled into the
+// invite share message since jigeummohae.app isn't a real, clickable domain
+// and the app isn't on a store yet, so a friend without it installed has no
+// other way to get it from the link alone.
+const APK_DOWNLOAD_URL = 'https://expo.dev/accounts/sheeeks-team/projects/jigeummohae/builds/2a0a8906-6f91-47a5-a556-58334ce16a03';
 
 function extractInviteCode(input: string): string {
   const trimmed = input.trim().replace(/\/+$/, '');
@@ -44,7 +49,9 @@ export default function AddFriendScreen() {
   async function shareLink() {
     if (!link) return;
     try {
-      await Share.share({ message: `지금 모해에서 친구 초대를 보냈어요: https://${link}` });
+      await Share.share({
+        message: `지금 모해에서 친구 초대를 보냈어요: https://${link}\n\n앱이 없으신가요? 다운로드: ${APK_DOWNLOAD_URL}`,
+      });
     } catch {
       // user cancelled — no-op
     }
