@@ -94,7 +94,7 @@ export default function AddFriendScreen() {
 
         <View style={styles.tabRow}>
           <Pressable style={[styles.tab, tab === 'send' && styles.tabOn]} onPress={() => setTab('send')}>
-            <Text style={[styles.tabText, tab === 'send' && styles.tabTextOn]}>링크 만들기</Text>
+            <Text style={[styles.tabText, tab === 'send' && styles.tabTextOn]}>친구 초대</Text>
           </Pressable>
           <Pressable style={[styles.tab, tab === 'recv' && styles.tabOn]} onPress={() => setTab('recv')}>
             <Text style={[styles.tabText, tab === 'recv' && styles.tabTextOn]}>초대 받음</Text>
@@ -179,7 +179,7 @@ export default function AddFriendScreen() {
                 />
               </View>
               <PrimaryButton onPress={openInvite} disabled={!codeInput.trim()} style={{ marginTop: 12 }}>
-                초대 확인하기
+                초대 코드 등록
               </PrimaryButton>
               <Text style={styles.linkNote}>
                 친구가 카카오톡이나 메시지로 보낸 코드를 여기에 붙여넣으면 친구 요청을 보낼 수 있어요.
