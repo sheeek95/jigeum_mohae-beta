@@ -41,6 +41,12 @@
       "expo-updates",
       "expo-notifications",
       [
+        "@react-native-seoul/kakao-login",
+        {
+          "kakaoAppKey": "af86bc4a009c8090ed0f65667f5299ee"
+        }
+      ],
+      [
         "expo-camera",
         {
           "cameraPermission": "친구에게 지금 이 순간을 사진으로 공유하기 위해 카메라를 사용해요."

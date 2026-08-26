@@ -2,8 +2,10 @@ import { Router } from 'express';
 import { z } from 'zod';
 
 import { randomAvatarGradient } from '../lib/avatar.js';
+import { badRequest } from '../lib/errors.js';
 import { generateInviteCode } from '../lib/inviteCode.js';
 import { signToken } from '../lib/jwt.js';
+import { verifyKakaoToken } from '../lib/kakao.js';
 import { prisma } from '../lib/prisma.js';
 import { requireAuth } from '../middleware/auth.js';
 
@@ -14,10 +16,9 @@ const deviceSchema = z.object({
   displayName: z.string().min(1).max(30).optional(),
 });
 
-// There is no login/signup screen in the app (spec's 6 screens don't include
-// one) — each install silently provisions a backend account keyed by a
-// SecureStore-generated device id. Good enough for the MVP's single-device
-// use case; swapping in phone/social auth later only touches this route.
+// Legacy device-id login, kept only so an already-installed app whose JS
+// hasn't picked up the Kakao-login update yet doesn't break mid-session.
+// New sign-ins go through POST /kakao instead — see that route's comment.
 authRouter.post('/device', async (req, res) => {
   const { deviceId, displayName } = deviceSchema.parse(req.body);
 
@@ -50,6 +51,65 @@ authRouter.post('/device', async (req, res) => {
     }
   }
   res.status(201).json({ token: signToken(user.id), user });
+});
+
+const kakaoSchema = z.object({ accessToken: z.string().min(1) });
+
+// The real, mandatory sign-in path: the client gets an access token from
+// the native Kakao SDK, we verify it directly with Kakao (never trust a
+// client-supplied id) and find-or-create the account by that Kakao id.
+// Unlike the old device-id flow, this survives a full reinstall or lost
+// local storage — logging back in with the same Kakao account always finds
+// the same backend user, since identity lives in Kakao, not on the device.
+authRouter.post('/kakao', async (req, res) => {
+  const { accessToken } = kakaoSchema.parse(req.body);
+  const { kakaoId, nickname } = await verifyKakaoToken(accessToken);
+
+  const existing = await prisma.user.findUnique({ where: { kakaoId } });
+  if (existing) {
+    res.json({ token: signToken(existing.id), user: existing });
+    return;
+  }
+
+  const [avatarStart, avatarEnd] = randomAvatarGradient();
+  let user;
+  for (let attempt = 0; ; attempt++) {
+    try {
+      user = await prisma.user.create({
+        data: {
+          kakaoId,
+          displayName: nickname ?? `게스트${Math.floor(1000 + Math.random() * 9000)}`,
+          avatarStart,
+          avatarEnd,
+          inviteCode: generateInviteCode(),
+          dndSetting: { create: {} },
+        },
+      });
+      break;
+    } catch (err) {
+      if (attempt < 3 && err instanceof Error && 'code' in err && err.code === 'P2002') continue;
+      throw err;
+    }
+  }
+  res.status(201).json({ token: signToken(user.id), user });
+});
+
+// Migration path for an account created before Kakao login existed: links
+// the Kakao identity to the CURRENT (already-authenticated) account instead
+// of spinning up a new one, so a pre-existing invite code/friends/groups
+// survive the switch. 400s if that Kakao account is already linked to a
+// different user — accepting the link would silently merge two accounts.
+authRouter.post('/link-kakao', requireAuth, async (req, res) => {
+  const { accessToken } = kakaoSchema.parse(req.body);
+  const { kakaoId } = await verifyKakaoToken(accessToken);
+
+  const existing = await prisma.user.findUnique({ where: { kakaoId } });
+  if (existing && existing.id !== req.userId) {
+    throw badRequest('이미 다른 계정에 연결된 카카오 계정이에요');
+  }
+
+  const user = await prisma.user.update({ where: { id: req.userId }, data: { kakaoId } });
+  res.json({ token: signToken(user.id), user });
 });
 
 authRouter.get('/me', requireAuth, async (req, res) => {

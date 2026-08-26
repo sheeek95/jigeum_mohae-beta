@@ -1,3 +1,4 @@
+import * as KakaoLogin from '@react-native-seoul/kakao-login';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { File } from 'expo-file-system';
 import { Platform } from 'react-native';
@@ -6,6 +7,7 @@ import { createJSONStorage, persist } from 'zustand/middleware';
 
 import { api, ApiError, resolveMediaUrl, setAuthToken } from '../api/client';
 import { getOrCreateDeviceId } from '../api/identity';
+import { clearStoredSessionToken, getStoredSessionToken, setStoredSessionToken } from '../api/session';
 import { getApiUrl, loadStoredApiUrl, setApiUrl } from '../api/urlConfig';
 import { registerForPushNotificationsAsync } from '../notifications/registerPush';
 import { syncAndroidWidget } from '../widgets/syncAndroidWidget';
@@ -34,7 +36,12 @@ import type {
   WidgetPhoto,
 } from './types';
 
-type AuthStatus = 'idle' | 'loading' | 'ready' | 'error';
+// 'needs-login': no account to recover at all — a fresh Kakao sign-in
+// creates one. 'needs-kakao-link': a pre-Kakao device-based account exists
+// and is already the active session — logging in with Kakao here LINKS it
+// (POST /auth/link-kakao) instead of creating a new one, so existing data
+// survives the switch.
+type AuthStatus = 'idle' | 'loading' | 'ready' | 'error' | 'needs-login' | 'needs-kakao-link';
 
 // Module-level (not store state) so every caller shares one in-flight
 // promise regardless of render timing — see bootstrap() below.
@@ -59,6 +66,7 @@ interface AppState {
   apiUrl: string;
   completeOnboarding: () => void;
   bootstrap: () => Promise<void>;
+  loginWithKakao: () => Promise<void>;
   registerPushToken: () => Promise<void>;
   changeApiUrl: (url: string) => Promise<void>;
   refreshAll: () => Promise<void>;
@@ -89,6 +97,27 @@ interface AppState {
 
 function gradient(start: string, end: string): AvatarGradient {
   return [start, end];
+}
+
+// Shared tail end of every successful auth path (resumed session, a
+// device-account that turned out already linked, or a fresh Kakao
+// login/link) — persists the session, sets `me`, flips authStatus to
+// 'ready', and kicks off the usual post-auth side effects.
+async function enterReady(
+  set: (partial: Partial<AppState>) => void,
+  get: () => AppState,
+  token: string,
+  user: ApiUser
+) {
+  setAuthToken(token);
+  await setStoredSessionToken(token);
+  syncIosWidgetCredentials(token, getApiUrl());
+  set({
+    me: { id: user.id, displayName: user.displayName, avatarGradient: gradient(user.avatarStart, user.avatarEnd) },
+    authStatus: 'ready',
+  });
+  get().registerPushToken(); // best-effort, never blocks
+  await get().refreshAll();
 }
 
 function mapFriend(f: ApiFriend): Friend {
@@ -207,16 +236,43 @@ export const useAppStore = create<AppState>()(
           try {
             const apiUrl = await loadStoredApiUrl();
             set({ apiUrl });
+
+            // 1. Already logged in via Kakao on a previous launch — resume
+            // straight from the stored session, no re-auth call at all.
+            const stored = await getStoredSessionToken();
+            if (stored) {
+              setAuthToken(stored);
+              try {
+                const { user } = await api.get<{ user: ApiUser }>('/auth/me');
+                await enterReady(set, get, stored, user);
+                return;
+              } catch {
+                // stale/invalid token — clear it and fall through to step 2
+                await clearStoredSessionToken();
+                setAuthToken(null);
+              }
+            }
+
+            // 2. No stored session. Recover a pre-Kakao device-based account
+            // if one exists, so linking (not a fresh signup) is offered
+            // first and nothing already there gets lost.
             const deviceId = await getOrCreateDeviceId();
-            const { token, user } = await api.post<{ token: string; user: ApiUser }>('/auth/device', { deviceId });
-            setAuthToken(token);
-            syncIosWidgetCredentials(token, getApiUrl());
-            set({
-              me: { id: user.id, displayName: user.displayName, avatarGradient: gradient(user.avatarStart, user.avatarEnd) },
-              authStatus: 'ready',
-            });
-            get().registerPushToken(); // best-effort, never blocks bootstrap
-            await get().refreshAll();
+            try {
+              const { token, user } = await api.post<{ token: string; user: ApiUser }>('/auth/device', { deviceId });
+              if (user.kakaoId) {
+                // Already linked from elsewhere (e.g. switched back to this
+                // device after linking on another one) — resume normally.
+                await enterReady(set, get, token, user);
+                return;
+              }
+              setAuthToken(token);
+              set({ authStatus: 'needs-kakao-link' });
+              return;
+            } catch {
+              // 3. Nothing to recover at all — a fresh Kakao sign-in ahead.
+              set({ authStatus: 'needs-login' });
+              return;
+            }
           } catch (err) {
             set({ authStatus: 'error', authError: err instanceof Error ? err.message : '연결에 실패했어요' });
             bootstrapPromise = null; // allow a retry
@@ -233,6 +289,9 @@ export const useAppStore = create<AppState>()(
         set({ apiUrl: getApiUrl(), authStatus: 'idle', me: null });
         bootstrapPromise = null;
         setAuthToken(null);
+        // A stored session token is only valid against the server that
+        // issued it — pointing at a different backend needs a fresh login.
+        await clearStoredSessionToken();
         await get().bootstrap();
       },
 
@@ -358,6 +417,17 @@ export const useAppStore = create<AppState>()(
             // already gone — fine to ignore
           }
         }
+      },
+
+      // Called from the mandatory login screen. authStatus decides which
+      // server endpoint the resulting Kakao token goes to: 'needs-kakao-link'
+      // means there's already an authenticated pre-Kakao account to attach
+      // it to (preserving its data); anything else is a fresh sign-in.
+      loginWithKakao: async () => {
+        const { accessToken } = await KakaoLogin.login();
+        const path = get().authStatus === 'needs-kakao-link' ? '/auth/link-kakao' : '/auth/kakao';
+        const { token, user } = await api.post<{ token: string; user: ApiUser }>(path, { accessToken });
+        await enterReady(set, get, token, user);
       },
 
       registerPushToken: async () => {

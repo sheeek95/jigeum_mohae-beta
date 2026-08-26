@@ -1,6 +1,7 @@
 export interface ApiUser {
   id: string;
-  deviceId: string;
+  deviceId: string | null;
+  kakaoId: string | null;
   displayName: string;
   avatarStart: string;
   avatarEnd: string;

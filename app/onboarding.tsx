@@ -80,11 +80,25 @@ export default function Onboarding() {
   const { width } = useWindowDimensions();
   const scrollRef = useRef<ScrollView>(null);
   const [slide, setSlide] = useState(0);
+  const [loggingIn, setLoggingIn] = useState(false);
+  const [loginError, setLoginError] = useState<string | null>(null);
   const completeOnboarding = useAppStore((s) => s.completeOnboarding);
+  const loginWithKakao = useAppStore((s) => s.loginWithKakao);
+  const authStatus = useAppStore((s) => s.authStatus);
+  const isLinking = authStatus === 'needs-kakao-link';
 
-  function finish() {
-    completeOnboarding();
-    router.replace('/(tabs)');
+  async function finish() {
+    setLoginError(null);
+    setLoggingIn(true);
+    try {
+      await loginWithKakao();
+      completeOnboarding();
+      router.replace('/(tabs)');
+    } catch (err) {
+      setLoginError(err instanceof Error ? err.message : '카카오 로그인에 실패했어요');
+    } finally {
+      setLoggingIn(false);
+    }
   }
 
   function goTo(index: number) {
@@ -134,12 +148,16 @@ export default function Onboarding() {
           ))}
         </View>
 
+        {slide === SLIDES.length - 1 && loginError && <Text style={styles.loginError}>{loginError}</Text>}
+
         <View style={styles.btnRow}>
           <PrimaryButton
             onPress={() => (slide === SLIDES.length - 1 ? finish() : goTo(slide + 1))}
+            loading={slide === SLIDES.length - 1 && loggingIn}
+            disabled={slide === SLIDES.length - 1 && loggingIn}
             style={{ flex: 1 }}
           >
-            {slide === SLIDES.length - 1 ? '시작하기' : '다음'}
+            {slide === SLIDES.length - 1 ? (isLinking ? '카카오로 계정 연결하기' : '카카오로 시작하기') : '다음'}
           </PrimaryButton>
         </View>
       </SafeAreaView>
@@ -193,4 +211,12 @@ const styles = StyleSheet.create({
   dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.surfaceHi },
   dotOn: { backgroundColor: colors.yellow, width: 16, borderRadius: 4 },
   btnRow: { flexDirection: 'row', gap: 10, paddingHorizontal: 24, paddingBottom: 20 },
+  loginError: {
+    color: colors.coral,
+    fontSize: 12.5,
+    fontWeight: '700',
+    textAlign: 'center',
+    paddingHorizontal: 24,
+    marginBottom: 10,
+  },
 });

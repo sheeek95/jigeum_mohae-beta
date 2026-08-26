@@ -2,27 +2,26 @@ import React from 'react';
 import type { WidgetTaskHandler, WidgetTaskHandlerProps } from 'react-native-android-widget';
 
 import { api, resolveMediaUrl, setAuthToken } from '../api/client';
-import { getOrCreateDeviceId } from '../api/identity';
+import { getStoredSessionToken } from '../api/session';
 import { JigeumMohaeWidget, type WidgetPhotoData } from './JigeumMohaeWidget';
 
 export const WIDGET_NAME = 'JigeumMohae';
-
-interface ApiUserResponse {
-  token: string;
-  user: { id: string };
-}
 
 interface ApiWidgetPhotoResponse {
   photo: { url: string; caption: string; senderName: string; groupName: string | null; createdAt: string } | null;
 }
 
 // Headless JS tasks run outside the mounted React tree (the app may not even
-// be open), so this can't read the zustand store — it re-authenticates with
-// the same persisted device id the app itself uses, independently.
+// be open), so this can't read the zustand store — it reads the same
+// persisted session token the app itself uses. It does NOT fall back to
+// device-id re-auth: an account created through Kakao login has no deviceId
+// at all, so that fallback would silently spin up a second, blank account
+// (exactly the bug login was added to stop) rather than just having no
+// photo to show this refresh.
 async function fetchLatestPhoto(): Promise<WidgetPhotoData | null> {
   try {
-    const deviceId = await getOrCreateDeviceId();
-    const { token } = await api.post<ApiUserResponse>('/auth/device', { deviceId });
+    const token = await getStoredSessionToken();
+    if (!token) return null;
     setAuthToken(token);
 
     const { photo } = await api.get<ApiWidgetPhotoResponse>('/photos/widget/latest');

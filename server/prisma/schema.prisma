@@ -14,7 +14,13 @@ datasource db {
 // Enforced in application code (routes/groups.ts), not the DB layer.
 model User {
   id           String   @id @default(cuid())
-  deviceId     String   @unique
+  // Legacy identity anchor from before Kakao login: still populated
+  // opportunistically, but no longer unique-constrained to an active
+  // session — kakaoId is the real identity now (see auth.ts).
+  deviceId     String?  @unique
+  // Kakao account identity — required going forward (login is mandatory),
+  // nullable only for pre-Kakao accounts that haven't linked yet.
+  kakaoId      String?  @unique
   displayName  String
   avatarStart  String   @default("#FF9AA6")
   avatarEnd    String   @default("#8A6BC7")
