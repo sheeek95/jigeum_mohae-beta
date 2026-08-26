@@ -35,7 +35,7 @@ app.get('/health', (_req, res) => res.json({ ok: true }));
 // download URL replaces this one; no code change or redeploy needed for that.
 const APK_DOWNLOAD_URL =
   process.env.APK_DOWNLOAD_URL ??
-  'https://expo.dev/accounts/sheeeks-team/projects/jigeummohae/builds/2a0a8906-6f91-47a5-a556-58334ce16a03';
+  'https://expo.dev/accounts/sheeeks-team/projects/jigeummohae/builds/d9acee25-9468-483d-8617-1c4202748228';
 app.get('/i/:code', (_req, res) => res.redirect(302, APK_DOWNLOAD_URL));
 
 app.use('/auth', authRouter);
