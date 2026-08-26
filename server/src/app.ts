@@ -48,7 +48,7 @@ app.get('/health', (_req, res) => res.json({ ok: true }));
 // needed for that.
 const APK_DOWNLOAD_URL =
   process.env.APK_DOWNLOAD_URL ??
-  'https://expo.dev/accounts/sheeeks-team/projects/jigeummohae/builds/d9acee25-9468-483d-8617-1c4202748228';
+  'https://expo.dev/accounts/sheeeks-team/projects/jigeummohae/builds/01938dcc-2a4d-4e28-8034-a431161abd68';
 app.get('/i/:code', (req, res) => {
   const ogImageUrl = `${req.protocol}://${req.get('host')}/public/og-icon.png`;
   res.type('html').send(`<!doctype html>
