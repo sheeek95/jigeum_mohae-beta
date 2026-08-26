@@ -1,6 +1,7 @@
 import * as Notifications from 'expo-notifications';
 import { router, Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import * as Updates from 'expo-updates';
 import { useEffect } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -28,6 +29,25 @@ export default function RootLayout() {
   useEffect(() => {
     bootstrap();
   }, [bootstrap]);
+
+  // expo-updates' default behavior only applies a downloaded OTA update on
+  // the NEXT cold start after the one that fetched it — so a fix could sit
+  // downloaded-but-inactive until the user closes and reopens the app
+  // twice. Check-and-apply immediately instead, so one relaunch is enough.
+  useEffect(() => {
+    if (__DEV__ || !Updates.isEnabled) return;
+    (async () => {
+      try {
+        const { isAvailable } = await Updates.checkForUpdateAsync();
+        if (!isAvailable) return;
+        await Updates.fetchUpdateAsync();
+        await Updates.reloadAsync();
+      } catch {
+        // offline, or the check/fetch failed — next launch's background
+        // check (expo-updates' own default behavior) will retry anyway
+      }
+    })();
+  }, []);
 
   // A tapped "저장 요청" push (see server/src/routes/photos.ts) carries the
   // photo's requester so we can jump straight to the album's sent tab.
