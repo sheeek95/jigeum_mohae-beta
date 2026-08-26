@@ -7,7 +7,6 @@ import { createJSONStorage, persist } from 'zustand/middleware';
 import { api, ApiError, resolveMediaUrl, setAuthToken } from '../api/client';
 import { getOrCreateDeviceId } from '../api/identity';
 import { getApiUrl, loadStoredApiUrl, setApiUrl } from '../api/urlConfig';
-import { registerForPushNotificationsAsync } from '../notifications/registerPush';
 import { syncAndroidWidget } from '../widgets/syncAndroidWidget';
 import { requestIosWidgetReload, syncIosWidgetCredentials } from '../widgets/syncIosWidget';
 import type {
@@ -59,7 +58,6 @@ interface AppState {
   apiUrl: string;
   completeOnboarding: () => void;
   bootstrap: () => Promise<void>;
-  registerPushToken: () => Promise<void>;
   changeApiUrl: (url: string) => Promise<void>;
   refreshAll: () => Promise<void>;
   refreshFriends: () => Promise<void>;
@@ -215,7 +213,6 @@ export const useAppStore = create<AppState>()(
               me: { id: user.id, displayName: user.displayName, avatarGradient: gradient(user.avatarStart, user.avatarEnd) },
               authStatus: 'ready',
             });
-            get().registerPushToken(); // best-effort, never blocks bootstrap
             await get().refreshAll();
           } catch (err) {
             set({ authStatus: 'error', authError: err instanceof Error ? err.message : '연결에 실패했어요' });
@@ -357,15 +354,6 @@ export const useAppStore = create<AppState>()(
           } catch {
             // already gone — fine to ignore
           }
-        }
-      },
-
-      registerPushToken: async () => {
-        try {
-          const token = await registerForPushNotificationsAsync();
-          if (token) await api.post('/push/register', { token });
-        } catch {
-          // best-effort — no push this session is fine, never surfaced to the user
         }
       },
 
