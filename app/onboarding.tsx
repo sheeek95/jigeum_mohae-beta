@@ -1,3 +1,4 @@
+import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { useRef, useState } from 'react';
@@ -47,11 +48,7 @@ const SLIDES = [
 
 function Illustration({ kind }: { kind: (typeof SLIDES)[number]['illustration'] }) {
   if (kind === 'logo') {
-    return (
-      <LinearGradient colors={['#FF6F81', '#6B3D8C']} style={styles.logo}>
-        <Text style={styles.logoText}>모</Text>
-      </LinearGradient>
-    );
+    return <Image source={require('../assets/icon.png')} style={styles.logo} contentFit="cover" />;
   }
   if (kind === 'widget') {
     return (
@@ -170,8 +167,7 @@ const styles = StyleSheet.create({
   skipRow: { alignItems: 'flex-end', paddingHorizontal: 20, paddingTop: 8 },
   skipText: { fontSize: 13, color: colors.textDim, fontWeight: '700', padding: 6 },
   illustrationWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', minHeight: 220 },
-  logo: { width: 100, height: 100, borderRadius: 30, alignItems: 'center', justifyContent: 'center' },
-  logoText: { fontSize: 34, fontWeight: '800', color: '#fff' },
+  logo: { width: 100, height: 100, borderRadius: 30 },
   widgetDemo: {
     width: 170,
     height: 170,
