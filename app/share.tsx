@@ -7,7 +7,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { PrimaryButton } from '../src/components/Buttons';
 import { Checkbox } from '../src/components/Checkbox';
-import { ScreenCaptureNotice } from '../src/components/ScreenCaptureNotice';
 import { SectionLabel } from '../src/components/SectionLabel';
 import { Toast } from '../src/components/Toast';
 import { useScreenCaptureBlock } from '../src/hooks/useScreenCaptureBlock';
@@ -64,8 +63,6 @@ export default function ShareScreen() {
             <Ionicons name="close" size={18} color={colors.textMid} />
           </Pressable>
         </View>
-
-        <ScreenCaptureNotice />
 
         <View style={styles.previewWrap}>
           {capturedPhoto && <Image source={{ uri: capturedPhoto.uri }} style={StyleSheet.absoluteFill} contentFit="cover" />}
