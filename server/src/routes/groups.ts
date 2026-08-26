@@ -9,7 +9,7 @@ export const groupsRouter = Router();
 groupsRouter.use(requireAuth);
 
 const MAX_GROUP_MEMBERS = 10; // spec: 그룹당 최대 8~10명
-const MAX_GROUPS_PER_USER = 3;
+const MAX_GROUPS_PER_USER = 2;
 
 groupsRouter.get('/', async (req, res) => {
   const groups = await prisma.group.findMany({

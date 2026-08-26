@@ -11,7 +11,7 @@ import { SwitchToggle } from '../../src/components/SwitchToggle';
 import { useAppStore } from '../../src/store/useAppStore';
 import { colors, radius } from '../../src/theme/tokens';
 
-const MAX_GROUPS = 3;
+const MAX_GROUPS = 2;
 const MAX_FRIENDS = 20;
 
 export default function SettingsScreen() {
