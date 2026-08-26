@@ -55,6 +55,27 @@ authRouter.post('/device', async (req, res) => {
 
 const kakaoSchema = z.object({ accessToken: z.string().min(1) });
 
+async function createKakaoUser(kakaoId: string, nickname: string | null) {
+  const [avatarStart, avatarEnd] = randomAvatarGradient();
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await prisma.user.create({
+        data: {
+          kakaoId,
+          displayName: nickname ?? `게스트${Math.floor(1000 + Math.random() * 9000)}`,
+          avatarStart,
+          avatarEnd,
+          inviteCode: generateInviteCode(),
+          dndSetting: { create: {} },
+        },
+      });
+    } catch (err) {
+      if (attempt < 3 && err instanceof Error && 'code' in err && err.code === 'P2002') continue;
+      throw err;
+    }
+  }
+}
+
 // The real, mandatory sign-in path: the client gets an access token from
 // the native Kakao SDK, we verify it directly with Kakao (never trust a
 // client-supplied id) and find-or-create the account by that Kakao id.
@@ -71,26 +92,7 @@ authRouter.post('/kakao', async (req, res) => {
     return;
   }
 
-  const [avatarStart, avatarEnd] = randomAvatarGradient();
-  let user;
-  for (let attempt = 0; ; attempt++) {
-    try {
-      user = await prisma.user.create({
-        data: {
-          kakaoId,
-          displayName: nickname ?? `게스트${Math.floor(1000 + Math.random() * 9000)}`,
-          avatarStart,
-          avatarEnd,
-          inviteCode: generateInviteCode(),
-          dndSetting: { create: {} },
-        },
-      });
-      break;
-    } catch (err) {
-      if (attempt < 3 && err instanceof Error && 'code' in err && err.code === 'P2002') continue;
-      throw err;
-    }
-  }
+  const user = await createKakaoUser(kakaoId, nickname);
   res.status(201).json({ token: signToken(user.id), user });
 });
 
@@ -101,15 +103,28 @@ authRouter.post('/kakao', async (req, res) => {
 // different user — accepting the link would silently merge two accounts.
 authRouter.post('/link-kakao', requireAuth, async (req, res) => {
   const { accessToken } = kakaoSchema.parse(req.body);
-  const { kakaoId } = await verifyKakaoToken(accessToken);
+  const { kakaoId, nickname } = await verifyKakaoToken(accessToken);
 
   const existing = await prisma.user.findUnique({ where: { kakaoId } });
   if (existing && existing.id !== req.userId) {
     throw badRequest('이미 다른 계정에 연결된 카카오 계정이에요');
   }
 
-  const user = await prisma.user.update({ where: { id: req.userId }, data: { kakaoId } });
-  res.json({ token: signToken(user.id), user });
+  try {
+    const user = await prisma.user.update({ where: { id: req.userId }, data: { kakaoId } });
+    res.json({ token: signToken(user.id), user });
+  } catch (err) {
+    // The device-based account this session's token points to no longer
+    // exists (e.g. a stale token surviving past that account's loss) —
+    // there's nothing left to link, so fall back to a fresh Kakao signup
+    // rather than 500ing on an unrecoverable "link" request.
+    if (err instanceof Error && 'code' in err && err.code === 'P2025') {
+      const user = await createKakaoUser(kakaoId, nickname);
+      res.status(201).json({ token: signToken(user.id), user });
+      return;
+    }
+    throw err;
+  }
 });
 
 authRouter.get('/me', requireAuth, async (req, res) => {
