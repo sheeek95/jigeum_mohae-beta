@@ -36,8 +36,14 @@ export function PromptModal({ visible, title, placeholder, initialValue = '', co
             autoFocus
           />
           <View style={styles.actions}>
-            <GhostButton onPress={onCancel}>취소</GhostButton>
-            <PrimaryButton onPress={() => value.trim() && onConfirm(value.trim())} disabled={!value.trim()}>
+            <GhostButton onPress={onCancel} style={{ flex: 1 }}>
+              취소
+            </GhostButton>
+            <PrimaryButton
+              onPress={() => value.trim() && onConfirm(value.trim())}
+              disabled={!value.trim()}
+              style={{ flex: 1 }}
+            >
               {confirmLabel}
             </PrimaryButton>
           </View>
