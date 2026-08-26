@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Avatar } from '../../src/components/Avatar';
 import { PulseRing } from '../../src/components/PulseRing';
+import { ScreenCaptureNotice } from '../../src/components/ScreenCaptureNotice';
 import { ScreenGradient } from '../../src/components/ScreenGradient';
 import { useScreenCaptureBlock } from '../../src/hooks/useScreenCaptureBlock';
 import { useAppStore } from '../../src/store/useAppStore';
@@ -145,6 +146,8 @@ export default function HomeScreen() {
             <Ionicons name="person-add-outline" size={16} color={colors.textMid} />
           </Pressable>
         </View>
+
+        <ScreenCaptureNotice />
 
         <View style={styles.timeHero}>
           <Text style={styles.time}>{hh}:{mm}</Text>

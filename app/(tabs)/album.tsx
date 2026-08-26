@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { ScreenCaptureNotice } from '../../src/components/ScreenCaptureNotice';
 import { ScreenGradient } from '../../src/components/ScreenGradient';
 import { useScreenCaptureBlock } from '../../src/hooks/useScreenCaptureBlock';
 import { useAppStore } from '../../src/store/useAppStore';
@@ -117,6 +118,8 @@ export default function AlbumScreen() {
         <View style={styles.nav}>
           <Text style={styles.navTitle}>앨범</Text>
         </View>
+
+        <ScreenCaptureNotice />
 
         {album.length === 0 ? (
           <View style={styles.empty}>

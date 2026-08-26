@@ -8,6 +8,7 @@ import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { GhostButton, PrimaryButton } from '../src/components/Buttons';
+import { ScreenCaptureNotice } from '../src/components/ScreenCaptureNotice';
 import { useScreenCaptureBlock } from '../src/hooks/useScreenCaptureBlock';
 import { useAppStore } from '../src/store/useAppStore';
 import { colors } from '../src/theme/tokens';
@@ -113,6 +114,9 @@ export default function CameraScreen() {
               <Text style={styles.pillText}>✕</Text>
             </Pressable>
           </SafeAreaView>
+          <View pointerEvents="none" style={styles.captureNoticeWrap}>
+            <ScreenCaptureNotice style={styles.captureNoticeText} />
+          </View>
           <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.flashOverlay, { opacity: flash }]} />
           <SafeAreaView style={styles.footerRow} edges={['bottom']}>
             <Pressable style={styles.shutter} onPress={takePhoto} />
@@ -121,6 +125,9 @@ export default function CameraScreen() {
       ) : (
         <View style={styles.previewWrap}>
           <Image source={{ uri: photoUri }} style={styles.previewPhoto} contentFit="cover" />
+          <View pointerEvents="none" style={styles.captureNoticeWrap}>
+            <ScreenCaptureNotice style={styles.captureNoticeText} />
+          </View>
           <SafeAreaView edges={['bottom']} style={styles.previewActions}>
             <GhostButton onPress={retake} style={{ flex: 1 }}>다시 찍기</GhostButton>
             <PrimaryButton onPress={confirmAndShare} style={{ flex: 1 }}>확인 · 공유하기</PrimaryButton>
@@ -147,6 +154,14 @@ const styles = StyleSheet.create({
   pill: { backgroundColor: 'rgba(0,0,0,0.35)', borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6 },
   pillTouchable: { backgroundColor: 'rgba(0,0,0,0.35)', borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6 },
   pillText: { color: '#fff', fontSize: 11, fontWeight: '600' },
+  captureNoticeWrap: { position: 'absolute', top: 52, left: 0, right: 0, alignItems: 'center' },
+  captureNoticeText: {
+    color: '#fff',
+    backgroundColor: 'rgba(0,0,0,0.35)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
   flashOverlay: { backgroundColor: '#fff' },
   footerRow: { position: 'absolute', bottom: 0, left: 0, right: 0, alignItems: 'center', paddingBottom: 20 },
   shutter: {
