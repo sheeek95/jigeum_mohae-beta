@@ -81,6 +81,22 @@ export default function AlbumScreen() {
     ]);
   }
 
+  async function handleRequestSave(photoId: string) {
+    try {
+      await requestSave(photoId);
+    } catch (err) {
+      Alert.alert('저장 요청을 보내지 못했어요', err instanceof Error ? err.message : undefined);
+    }
+  }
+
+  async function handleResolveSave(photoId: string, targetUserId: string, approve: boolean) {
+    try {
+      await resolveSave(photoId, targetUserId, approve);
+    } catch (err) {
+      Alert.alert('처리하지 못했어요', err instanceof Error ? err.message : undefined);
+    }
+  }
+
   // Re-render periodically so the 24h countdown stays live.
   useEffect(() => {
     const id = setInterval(() => forceTick((n) => n + 1), 60_000);
@@ -137,8 +153,8 @@ export default function AlbumScreen() {
                     <Text style={styles.expire}>{formatCountdown(item.expiresAt)}</Text>
                     <ItemActions
                       item={item}
-                      onRequestSave={() => requestSave(item.photoId)}
-                      onResolve={(approve) => item.targetUserId && resolveSave(item.photoId, item.targetUserId, approve)}
+                      onRequestSave={() => handleRequestSave(item.photoId)}
+                      onResolve={(approve) => item.targetUserId && handleResolveSave(item.photoId, item.targetUserId, approve)}
                     />
                   </View>
                 </View>

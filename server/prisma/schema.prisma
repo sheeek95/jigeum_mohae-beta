@@ -34,6 +34,19 @@ model User {
   pokesReceived     Poke[]            @relation("PokeTo")
   photosSent        Photo[]           @relation("PhotoSender")
   photoDeliveries   PhotoDelivery[]
+  pushTokens        PushToken[]
+}
+
+// One row per device registered for push (a user can have several — phone
+// switch, or briefly two devices at once). Token is the unique key: a
+// re-registered token (e.g. after a reinstall on another account) simply
+// moves to the new owner.
+model PushToken {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String   @unique
+  createdAt DateTime @default(now())
 }
 
 model DndSetting {

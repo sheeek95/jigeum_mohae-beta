@@ -12,6 +12,7 @@ import { groupsRouter } from './routes/groups.js';
 import { invitesRouter } from './routes/invites.js';
 import { photosRouter, UPLOAD_DIR } from './routes/photos.js';
 import { pokesRouter } from './routes/pokes.js';
+import { pushRouter } from './routes/push.js';
 import { settingsRouter } from './routes/settings.js';
 
 fs.mkdirSync(UPLOAD_DIR, { recursive: true });
@@ -44,6 +45,7 @@ app.use('/groups', groupsRouter);
 app.use('/pokes', pokesRouter);
 app.use('/photos', photosRouter);
 app.use('/settings', settingsRouter);
+app.use('/push', pushRouter);
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {

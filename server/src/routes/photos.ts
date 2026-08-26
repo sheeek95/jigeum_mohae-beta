@@ -9,6 +9,7 @@ import { z } from 'zod';
 
 import { badRequest, forbidden, notFound } from '../lib/errors.js';
 import { prisma } from '../lib/prisma.js';
+import { sendPushToUser } from '../lib/push.js';
 import { requireAuth } from '../middleware/auth.js';
 
 export const UPLOAD_DIR = path.resolve(process.cwd(), 'uploads');
@@ -40,6 +41,11 @@ async function saveCompressedPhoto(buffer: Buffer): Promise<string> {
 
 export const photosRouter = Router();
 photosRouter.use(requireAuth);
+
+// Storage cap on permanently-saved (APPROVED) photos, separate from the 24h
+// TTL that everything else self-clears through. Free-tier number for now —
+// spec says this varies per paid plan once billing exists.
+const MAX_SAVED_PHOTOS = 50;
 
 const shareSchema = z.object({
   caption: z.string().max(200).optional().default(''),
@@ -157,10 +163,23 @@ photosRouter.get('/sent', async (req, res) => {
 photosRouter.post('/:photoId/request-save', async (req, res) => {
   const delivery = await prisma.photoDelivery.findUnique({
     where: { photoId_userId: { photoId: req.params.photoId, userId: req.userId } },
+    include: { photo: { include: { sender: true } } },
   });
   if (!delivery) throw notFound('받은 사진');
   if (delivery.saveStatus !== 'NONE') throw badRequest('이미 요청했거나 처리된 사진이에요');
+
+  const savedCount = await prisma.photoDelivery.count({ where: { userId: req.userId, saveStatus: 'APPROVED' } });
+  if (savedCount >= MAX_SAVED_PHOTOS) throw badRequest(`저장된 사진은 최대 ${MAX_SAVED_PHOTOS}장까지예요`);
+
+  const requester = await prisma.user.findUniqueOrThrow({ where: { id: req.userId } });
   const updated = await prisma.photoDelivery.update({ where: { id: delivery.id }, data: { saveStatus: 'PENDING' } });
+
+  sendPushToUser(delivery.photo.senderId, {
+    title: '사진 저장 요청',
+    body: `${requester.displayName}님이 사진 저장을 요청했어요`,
+    data: { type: 'save-request', photoId: delivery.photoId, targetUserId: req.userId },
+  });
+
   res.json({ delivery: updated });
 });
 
