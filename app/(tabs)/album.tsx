@@ -6,6 +6,7 @@ import { Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ScreenGradient } from '../../src/components/ScreenGradient';
+import { useScreenCaptureBlock } from '../../src/hooks/useScreenCaptureBlock';
 import { useAppStore } from '../../src/store/useAppStore';
 import type { AlbumItem } from '../../src/store/types';
 import { colors, radius } from '../../src/theme/tokens';
@@ -66,6 +67,7 @@ function ItemActions({
 }
 
 export default function AlbumScreen() {
+  useScreenCaptureBlock();
   const album = useAppStore((s) => s.album);
   const requestSave = useAppStore((s) => s.requestSave);
   const resolveSave = useAppStore((s) => s.resolveSave);

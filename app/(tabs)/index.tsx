@@ -8,6 +8,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Avatar } from '../../src/components/Avatar';
 import { PulseRing } from '../../src/components/PulseRing';
 import { ScreenGradient } from '../../src/components/ScreenGradient';
+import { useScreenCaptureBlock } from '../../src/hooks/useScreenCaptureBlock';
 import { useAppStore } from '../../src/store/useAppStore';
 import type { AlbumItem, Group } from '../../src/store/types';
 import { colors, radius } from '../../src/theme/tokens';
@@ -92,6 +93,7 @@ function GroupCard({ group, latest }: { group: Group; latest: AlbumItem | undefi
 }
 
 export default function HomeScreen() {
+  useScreenCaptureBlock();
   const now = useClock();
   const allGroups = useAppStore((s) => s.groups);
   const groups = useMemo(() => allGroups.filter((g) => g.kind === 'group'), [allGroups]);

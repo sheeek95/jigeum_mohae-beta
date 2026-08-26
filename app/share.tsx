@@ -9,10 +9,12 @@ import { PrimaryButton } from '../src/components/Buttons';
 import { Checkbox } from '../src/components/Checkbox';
 import { SectionLabel } from '../src/components/SectionLabel';
 import { Toast } from '../src/components/Toast';
+import { useScreenCaptureBlock } from '../src/hooks/useScreenCaptureBlock';
 import { useAppStore } from '../src/store/useAppStore';
 import { colors, radius } from '../src/theme/tokens';
 
 export default function ShareScreen() {
+  useScreenCaptureBlock();
   const { presetGroupId } = useLocalSearchParams<{ presetGroupId?: string }>();
   const groups = useAppStore((s) => s.groups);
   const capturedPhoto = useAppStore((s) => s.capturedPhoto);

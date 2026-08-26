@@ -8,6 +8,7 @@ import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { GhostButton, PrimaryButton } from '../src/components/Buttons';
+import { useScreenCaptureBlock } from '../src/hooks/useScreenCaptureBlock';
 import { useAppStore } from '../src/store/useAppStore';
 import { colors } from '../src/theme/tokens';
 import { base64ToBytes } from '../src/utils/base64';
@@ -25,6 +26,7 @@ function writeDemoPhoto(): string {
 }
 
 export default function CameraScreen() {
+  useScreenCaptureBlock();
   const { presetGroupId } = useLocalSearchParams<{ presetGroupId?: string }>();
   const [permission, requestPermission] = useCameraPermissions();
   const cameraRef = useRef<CameraView>(null);
