@@ -246,10 +246,22 @@ export const useAppStore = create<AppState>()(
                 const { user } = await api.get<{ user: ApiUser }>('/auth/me');
                 await enterReady(set, get, stored, user);
                 return;
-              } catch {
-                // stale/invalid token — clear it and fall through to step 2
-                await clearStoredSessionToken();
-                setAuthToken(null);
+              } catch (err) {
+                if (err instanceof ApiError && err.status === 401) {
+                  // The token itself is genuinely invalid/expired — clear it
+                  // and fall through to step 2.
+                  await clearStoredSessionToken();
+                  setAuthToken(null);
+                } else {
+                  // A transient failure (network hiccup, Render cold start,
+                  // a 5xx) — the session is still perfectly valid. Treating
+                  // this the same as an invalid token was the actual bug
+                  // behind "invite code and name keep resetting": it threw
+                  // away a good session and fell into step 2's device-based
+                  // fallback, which mints a brand-new throwaway account.
+                  // Surface an error instead so the user can just retry.
+                  throw err;
+                }
               }
             }
 
