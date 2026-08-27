@@ -20,6 +20,12 @@ interface RequestOptions {
   form?: FormData;
 }
 
+// plain fetch() has no default timeout — on a bad connection or a stuck
+// server it can hang indefinitely instead of failing, leaving screens
+// spinning forever with nothing for the user to do. 20s comfortably covers
+// a Render free-tier cold start while still failing fast on a real hang.
+const REQUEST_TIMEOUT_MS = 20_000;
+
 async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
   const headers: Record<string, string> = {};
   if (authToken) headers.authorization = `Bearer ${authToken}`;
@@ -32,7 +38,25 @@ async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
     body = JSON.stringify(opts.json);
   }
 
-  const res = await fetch(`${getApiUrl()}${path}`, { method: opts.method ?? 'GET', headers, body });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
+  let res: Response;
+  try {
+    res = await fetch(`${getApiUrl()}${path}`, {
+      method: opts.method ?? 'GET',
+      headers,
+      body,
+      signal: controller.signal,
+    });
+  } catch (err) {
+    if (err instanceof Error && err.name === 'AbortError') {
+      throw new Error('서버 응답이 너무 오래 걸려요. 잠시 후 다시 시도해주세요.');
+    }
+    throw err;
+  } finally {
+    clearTimeout(timeout);
+  }
 
   if (res.status === 204) return undefined as T;
 
