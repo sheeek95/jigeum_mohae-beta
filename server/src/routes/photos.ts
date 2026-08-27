@@ -137,7 +137,7 @@ photosRouter.get('/widget/latest', async (req, res) => {
 photosRouter.get('/received', async (req, res) => {
   const deliveries = await prisma.photoDelivery.findMany({
     where: { userId: req.userId, saveStatus: 'APPROVED' },
-    include: { photo: { include: { sender: true } } },
+    include: { photo: { include: { sender: true, group: true } } },
     orderBy: { savedAt: 'desc' },
   });
   res.json({
@@ -147,6 +147,9 @@ photosRouter.get('/received', async (req, res) => {
       url: `/uploads/${d.photo.storageKey}`,
       caption: d.photo.caption,
       senderName: d.photo.sender.displayName,
+      // A PERSONAL target's own "group" name is just the sender's name
+      // again (see invites.ts) — only a real GROUP name adds information.
+      groupName: d.photo.group?.kind === 'GROUP' ? d.photo.group.name : null,
       createdAt: d.photo.createdAt,
       savedAt: d.savedAt,
     })),

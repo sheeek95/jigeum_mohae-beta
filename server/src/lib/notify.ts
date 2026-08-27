@@ -7,6 +7,7 @@ interface NotifyPayload {
   title: string;
   body: string;
   photoId?: string;
+  groupId?: string;
   fromUserId?: string;
 }
 
@@ -22,6 +23,7 @@ export async function notify(userId: string, type: NotificationType, payload: No
         title: payload.title,
         body: payload.body,
         photoId: payload.photoId,
+        groupId: payload.groupId,
         fromUserId: payload.fromUserId,
       },
     })
@@ -30,6 +32,6 @@ export async function notify(userId: string, type: NotificationType, payload: No
   sendPushToUser(userId, {
     title: payload.title,
     body: payload.body,
-    data: { type, photoId: payload.photoId, fromUserId: payload.fromUserId },
+    data: { type, photoId: payload.photoId, groupId: payload.groupId, fromUserId: payload.fromUserId },
   });
 }

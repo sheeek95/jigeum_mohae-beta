@@ -51,6 +51,8 @@ model User {
   notifications     Notification[]  @relation("NotificationRecipient")
   notificationsFrom Notification[]  @relation("NotificationFrom")
   photoComments     PhotoComment[]
+  groupInvitesSent  GroupInvite[]   @relation("GroupInviteFrom")
+  groupInvitesRecv  GroupInvite[]   @relation("GroupInviteTo")
 }
 
 // One row per device registered for push (a user can have several — phone
@@ -105,6 +107,7 @@ model Group {
   createdAt    DateTime      @default(now())
   members      GroupMember[]
   photos       Photo[]
+  invites      GroupInvite[]
 }
 
 model GroupMember {
@@ -115,6 +118,22 @@ model GroupMember {
   user    User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([groupId, userId])
+}
+
+// A pending ask to join a GROUP-kind group — added by POST /groups/:id/members,
+// resolved (and deleted either way) by POST /groups/invites/:id/respond. The
+// row existing at all means "still pending"; there's no separate status field.
+model GroupInvite {
+  id        String   @id @default(cuid())
+  groupId   String
+  group     Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  inviterId String
+  inviter   User     @relation("GroupInviteFrom", fields: [inviterId], references: [id], onDelete: Cascade)
+  inviteeId String
+  invitee   User     @relation("GroupInviteTo", fields: [inviteeId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([groupId, inviteeId])
 }
 
 model Poke {
@@ -200,6 +219,8 @@ enum NotificationType {
   PHOTO_REACTION
   PHOTO_REPLY
   SAVE_REQUEST
+  GROUP_INVITE
+  GROUP_MEMBER_JOINED
 }
 
 // Persisted, in-app notification history — separate from (and paired
@@ -212,8 +233,9 @@ model Notification {
   type       NotificationType
   title      String
   body       String
-  // Optional context for deep-linking / rendering — not every type uses both.
+  // Optional context for deep-linking / rendering — not every type uses all.
   photoId    String?
+  groupId    String?
   fromUserId String?
   fromUser   User?            @relation("NotificationFrom", fields: [fromUserId], references: [id], onDelete: SetNull)
   read       Boolean          @default(false)

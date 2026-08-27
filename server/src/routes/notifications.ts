@@ -20,6 +20,7 @@ notificationsRouter.get('/', async (req, res) => {
       title: n.title,
       body: n.body,
       photoId: n.photoId,
+      groupId: n.groupId,
       fromUserName: n.fromUser?.displayName ?? null,
       read: n.read,
       createdAt: n.createdAt,

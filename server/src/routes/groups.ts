@@ -3,6 +3,7 @@ import { z } from 'zod';
 
 import { topCommentsFor } from '../lib/comments.js';
 import { badRequest, forbidden, notFound } from '../lib/errors.js';
+import { notify } from '../lib/notify.js';
 import { prisma } from '../lib/prisma.js';
 import { requireAuth } from '../middleware/auth.js';
 
@@ -12,10 +13,16 @@ groupsRouter.use(requireAuth);
 const MAX_GROUP_MEMBERS = 10; // spec: 그룹당 최대 8~10명
 const MAX_GROUPS_PER_USER = 2;
 
+// Groups I own, plus GROUP-kind groups someone else owns that I've been
+// accepted into — a joined (non-owner) member needs this group to show up
+// on their own Home just like it does for the owner.
 groupsRouter.get('/', async (req, res) => {
   const groups = await prisma.group.findMany({
-    where: { ownerId: req.userId },
+    where: {
+      OR: [{ ownerId: req.userId }, { kind: 'GROUP', members: { some: { userId: req.userId } } }],
+    },
     include: {
+      owner: true,
       members: { include: { user: { include: { dndSetting: true } } } },
       friendUser: { include: { dndSetting: true } },
     },
@@ -23,18 +30,29 @@ groupsRouter.get('/', async (req, res) => {
   });
 
   res.json({
-    groups: groups.map((g) => ({
-      id: g.id,
-      name: g.name,
-      kind: g.kind,
-      memberCount: g.kind === 'GROUP' ? g.members.length : 1,
-      dnd: g.kind === 'PERSONAL' ? (g.friendUser?.dndSetting?.enabled ?? false) : false,
-      friendId: g.friendUserId,
-      members:
+    groups: groups.map((g) => {
+      const isOwner = g.ownerId === req.userId;
+      // "다른 사람들" — everyone in the group besides me, whether that's my
+      // own GroupMember rows (I'm the owner) or the owner plus the other
+      // members (I joined someone else's group).
+      const others =
         g.kind === 'GROUP'
-          ? g.members.map((m) => ({ id: m.user.id, displayName: m.user.displayName }))
-          : undefined,
-    })),
+          ? [
+              ...(isOwner ? [] : [{ id: g.owner.id, displayName: g.owner.displayName }]),
+              ...g.members.filter((m) => m.userId !== req.userId).map((m) => ({ id: m.user.id, displayName: m.user.displayName })),
+            ]
+          : undefined;
+      return {
+        id: g.id,
+        name: g.name,
+        kind: g.kind,
+        isOwner,
+        memberCount: g.kind === 'GROUP' ? (others?.length ?? 0) : 1,
+        dnd: g.kind === 'PERSONAL' ? (g.friendUser?.dndSetting?.enabled ?? false) : false,
+        friendId: g.friendUserId,
+        members: others,
+      };
+    }),
   });
 });
 
@@ -69,6 +87,9 @@ groupsRouter.delete('/:id', async (req, res) => {
 
 const addMemberSchema = z.object({ userId: z.string() });
 
+// Inviting a friend to a GROUP no longer adds them outright — it creates a
+// pending GroupInvite and notifies them; they only actually join once they
+// accept via POST /invites/:id/respond. Friends-only, same as before.
 groupsRouter.post('/:id/members', async (req, res) => {
   const { userId } = addMemberSchema.parse(req.body);
   const group = await prisma.group.findUnique({ where: { id: req.params.id } });
@@ -82,17 +103,99 @@ groupsRouter.post('/:id/members', async (req, res) => {
       ],
     },
   });
-  if (!isFriend) throw badRequest('친구만 그룹에 추가할 수 있어요');
+  if (!isFriend) throw badRequest('친구만 그룹에 초대할 수 있어요');
+
+  const alreadyMember = await prisma.groupMember.findUnique({
+    where: { groupId_userId: { groupId: group.id, userId } },
+  });
+  if (alreadyMember) throw badRequest('이미 그룹에 있는 친구예요');
 
   const memberCount = await prisma.groupMember.count({ where: { groupId: group.id } });
   if (memberCount >= MAX_GROUP_MEMBERS) throw badRequest(`그룹은 최대 ${MAX_GROUP_MEMBERS}명까지예요`);
 
-  const member = await prisma.groupMember.upsert({
-    where: { groupId_userId: { groupId: group.id, userId } },
-    update: {},
-    create: { groupId: group.id, userId },
+  const [owner, invite] = await Promise.all([
+    prisma.user.findUniqueOrThrow({ where: { id: req.userId } }),
+    prisma.groupInvite.upsert({
+      where: { groupId_inviteeId: { groupId: group.id, inviteeId: userId } },
+      update: {},
+      create: { groupId: group.id, inviterId: req.userId, inviteeId: userId },
+    }),
+  ]);
+
+  void notify(userId, 'GROUP_INVITE', {
+    title: '그룹 초대가 왔어요',
+    body: `${owner.displayName}님이 "${group.name}" 그룹에 초대했어요`,
+    groupId: group.id,
+    fromUserId: req.userId,
   });
-  res.status(201).json({ member });
+
+  res.status(201).json({ invite });
+});
+
+groupsRouter.get('/invites', async (req, res) => {
+  const invites = await prisma.groupInvite.findMany({
+    where: { inviteeId: req.userId },
+    include: { group: true, inviter: true },
+    orderBy: { createdAt: 'desc' },
+  });
+  res.json({
+    invites: invites.map((i) => ({
+      id: i.id,
+      groupId: i.groupId,
+      groupName: i.group.name,
+      inviterName: i.inviter.displayName,
+      createdAt: i.createdAt,
+    })),
+  });
+});
+
+const respondSchema = z.object({ approve: z.boolean() });
+
+// Accepting notifies the group's owner and every existing member (not just
+// the owner) that someone new joined — declining just quietly removes the
+// invite, no notification either way back to the inviter.
+groupsRouter.post('/invites/:id/respond', async (req, res) => {
+  const { approve } = respondSchema.parse(req.body);
+  const invite = await prisma.groupInvite.findUnique({
+    where: { id: req.params.id },
+    include: { group: true },
+  });
+  if (!invite || invite.inviteeId !== req.userId) throw notFound('초대');
+
+  if (!approve) {
+    await prisma.groupInvite.delete({ where: { id: invite.id } });
+    res.status(204).end();
+    return;
+  }
+
+  const memberCount = await prisma.groupMember.count({ where: { groupId: invite.groupId } });
+  if (memberCount >= MAX_GROUP_MEMBERS) {
+    await prisma.groupInvite.delete({ where: { id: invite.id } });
+    throw badRequest('그룹 정원이 가득 찼어요');
+  }
+
+  const [invitee, existingMembers] = await Promise.all([
+    prisma.user.findUniqueOrThrow({ where: { id: req.userId } }),
+    prisma.groupMember.findMany({ where: { groupId: invite.groupId } }),
+  ]);
+
+  await prisma.$transaction([
+    prisma.groupMember.create({ data: { groupId: invite.groupId, userId: req.userId } }),
+    prisma.groupInvite.delete({ where: { id: invite.id } }),
+  ]);
+
+  const notifyTargets = new Set([invite.group.ownerId, ...existingMembers.map((m) => m.userId)]);
+  notifyTargets.delete(req.userId);
+  for (const uid of notifyTargets) {
+    void notify(uid, 'GROUP_MEMBER_JOINED', {
+      title: '새 멤버가 들어왔어요',
+      body: `${invitee.displayName}님이 "${invite.group.name}" 그룹에 들어왔어요`,
+      groupId: invite.groupId,
+      fromUserId: req.userId,
+    });
+  }
+
+  res.status(204).end();
 });
 
 groupsRouter.delete('/:id/members/:userId', async (req, res) => {
