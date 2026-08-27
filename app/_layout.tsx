@@ -101,6 +101,7 @@ export default function RootLayout() {
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="add-friend" options={{ presentation: 'modal' }} />
           <Stack.Screen name="notifications" options={{ presentation: 'modal' }} />
+          <Stack.Screen name="group-invites" options={{ presentation: 'modal' }} />
           <Stack.Screen name="invite/[code]" options={{ presentation: 'modal' }} />
           <Stack.Screen name="camera" options={{ presentation: 'fullScreenModal', animation: 'fade' }} />
           <Stack.Screen name="share" options={{ presentation: 'modal' }} />

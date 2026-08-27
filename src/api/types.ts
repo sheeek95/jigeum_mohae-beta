@@ -23,10 +23,29 @@ export interface ApiGroup {
   id: string;
   name: string;
   kind: ApiGroupKind;
+  isOwner: boolean;
   memberCount: number;
   dnd: boolean;
   friendId: string | null;
   members?: { id: string; displayName: string }[];
+}
+
+// A pending ask to join a GROUP-kind group — see GET /groups/invites and
+// POST /groups/invites/:id/respond.
+export interface ApiGroupInvite {
+  id: string;
+  groupId: string;
+  groupName: string;
+  inviterName: string;
+  createdAt: string;
+}
+
+// Owner-only: who's already been invited to a specific group and hasn't
+// responded yet — see GET /groups/:id/invites.
+export interface ApiPendingGroupInvite {
+  id: string;
+  userId: string;
+  displayName: string;
 }
 
 export interface ApiInvite {
@@ -66,6 +85,7 @@ export interface ApiReceivedPhoto {
   url: string;
   caption: string;
   senderName: string;
+  groupName: string | null;
   createdAt: string;
   savedAt: string | null;
 }
@@ -128,7 +148,9 @@ export type ApiNotificationType =
   | 'PHOTO_RECEIVED'
   | 'PHOTO_REACTION'
   | 'PHOTO_REPLY'
-  | 'SAVE_REQUEST';
+  | 'SAVE_REQUEST'
+  | 'GROUP_INVITE'
+  | 'GROUP_MEMBER_JOINED';
 
 export interface ApiNotification {
   id: string;
@@ -136,6 +158,7 @@ export interface ApiNotification {
   title: string;
   body: string;
   photoId: string | null;
+  groupId: string | null;
   fromUserName: string | null;
   read: boolean;
   createdAt: string;

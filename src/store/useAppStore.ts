@@ -17,11 +17,13 @@ import type {
   ApiDnd,
   ApiFriend,
   ApiGroup,
+  ApiGroupInvite,
   ApiGroupPhoto,
   ApiInvite,
   ApiInvitePreview,
   ApiNotification,
   ApiNotificationType,
+  ApiPendingGroupInvite,
   ApiReceivedPhoto,
   ApiSentPhoto,
   ApiUser,
@@ -35,10 +37,12 @@ import type {
   DndSettings,
   Friend,
   Group,
+  GroupInvite,
   GroupPhoto,
   InviteLink,
   Me,
   NotificationType,
+  PendingGroupInvite,
   SavedPhotoItem,
   SaveRequestStatus,
   SentPhotoItem,
@@ -76,6 +80,8 @@ interface AppState {
   pokedIds: string[];
   notifications: AppNotification[];
   unreadNotificationCount: number;
+  groupInvites: GroupInvite[];
+  groupPendingInvites: Record<string, PendingGroupInvite[]>;
 
   apiUrl: string;
   completeOnboarding: () => void;
@@ -95,6 +101,9 @@ interface AppState {
   fetchGroupPhotos: (groupId: string) => Promise<GroupPhoto[]>;
   fetchComments: (photoId: string) => Promise<Comment[]>;
   submitComment: (photoId: string, text: string, parentId?: string) => Promise<void>;
+  refreshGroupInvites: () => Promise<void>;
+  respondToGroupInvite: (inviteId: string, approve: boolean) => Promise<void>;
+  fetchGroupPendingInvites: (groupId: string) => Promise<PendingGroupInvite[]>;
 
   poke: (userId: string) => Promise<boolean>;
   loadInviteByCode: (code: string) => Promise<void>;
@@ -110,7 +119,7 @@ interface AppState {
 
   setDnd: (patch: Partial<DndSettings>) => Promise<void>;
   addGroup: (name: string) => Promise<void>;
-  addGroupMember: (groupId: string, userId: string) => Promise<void>;
+  inviteGroupMember: (groupId: string, userId: string) => Promise<void>;
   removeGroupMember: (groupId: string, userId: string) => Promise<void>;
   updateDisplayName: (name: string) => Promise<void>;
 }
@@ -155,12 +164,27 @@ function mapGroup(g: ApiGroup): Group {
     id: g.id,
     name: g.name,
     kind: g.kind === 'GROUP' ? 'group' : 'personal',
+    isOwner: g.isOwner,
     memberCount: g.memberCount,
     dnd: g.dnd,
     subLabel: g.kind === 'GROUP' ? `친구 ${g.memberCount}명 · 공유 허용` : g.dnd ? '방해금지 중 · 알림 지연' : '친구',
     friendId: g.friendId,
     members: g.members,
   };
+}
+
+function mapGroupInvite(i: ApiGroupInvite): GroupInvite {
+  return {
+    id: i.id,
+    groupId: i.groupId,
+    groupName: i.groupName,
+    inviterName: i.inviterName,
+    createdAt: new Date(i.createdAt).getTime(),
+  };
+}
+
+function mapPendingGroupInvite(i: ApiPendingGroupInvite): PendingGroupInvite {
+  return { id: i.id, userId: i.userId, displayName: i.displayName };
 }
 
 function mapSavedPhoto(p: ApiReceivedPhoto): SavedPhotoItem {
@@ -170,6 +194,7 @@ function mapSavedPhoto(p: ApiReceivedPhoto): SavedPhotoItem {
     peerName: p.senderName,
     caption: p.caption,
     photoUrl: resolveMediaUrl(p.url),
+    groupName: p.groupName,
     sentAt: new Date(p.createdAt).getTime(),
     savedAt: p.savedAt ? new Date(p.savedAt).getTime() : null,
   };
@@ -230,6 +255,8 @@ const NOTIFICATION_TYPE_MAP: Record<ApiNotificationType, NotificationType> = {
   PHOTO_REACTION: 'photo-reaction',
   PHOTO_REPLY: 'photo-reply',
   SAVE_REQUEST: 'save-request',
+  GROUP_INVITE: 'group-invite',
+  GROUP_MEMBER_JOINED: 'group-member-joined',
 };
 
 function mapNotification(n: ApiNotification): AppNotification {
@@ -239,6 +266,7 @@ function mapNotification(n: ApiNotification): AppNotification {
     title: n.title,
     body: n.body,
     photoId: n.photoId,
+    groupId: n.groupId,
     fromUserName: n.fromUserName,
     read: n.read,
     createdAt: new Date(n.createdAt).getTime(),
@@ -296,6 +324,8 @@ export const useAppStore = create<AppState>()(
       pokedIds: [],
       notifications: [],
       unreadNotificationCount: 0,
+      groupInvites: [],
+      groupPendingInvites: {},
       apiUrl: getApiUrl(),
 
       completeOnboarding: () => set({ hasOnboarded: true }),
@@ -392,6 +422,7 @@ export const useAppStore = create<AppState>()(
           get().refreshWidget(),
           get().refreshInvite(),
           get().refreshUnreadCount(),
+          get().refreshGroupInvites(),
           (async () => {
             const { dnd } = await api.get<{ dnd: ApiDnd }>('/settings/dnd');
             set({ dnd: mapDnd(dnd) });
@@ -500,6 +531,28 @@ export const useAppStore = create<AppState>()(
         await get().fetchComments(photoId);
       },
 
+      refreshGroupInvites: async () => {
+        const ticket = takeTicket('groupInvites');
+        const { invites } = await api.get<{ invites: ApiGroupInvite[] }>('/groups/invites');
+        if (!isCurrentTicket('groupInvites', ticket)) return;
+        set({ groupInvites: invites.map(mapGroupInvite) });
+      },
+
+      respondToGroupInvite: async (inviteId, approve) => {
+        await api.post(`/groups/invites/${inviteId}/respond`, { approve });
+        set((state) => ({ groupInvites: state.groupInvites.filter((i) => i.id !== inviteId) }));
+        if (approve) await get().refreshGroups();
+      },
+
+      // Owner-only — used by the group-management screen to grey out
+      // friends already invited and waiting on a response.
+      fetchGroupPendingInvites: async (groupId) => {
+        const { invites } = await api.get<{ invites: ApiPendingGroupInvite[] }>(`/groups/${groupId}/invites`);
+        const mapped = invites.map(mapPendingGroupInvite);
+        set((state) => ({ groupPendingInvites: { ...state.groupPendingInvites, [groupId]: mapped } }));
+        return mapped;
+      },
+
       poke: async (userId) => {
         const { anyDelayed } = await api.post<{ anyDelayed: boolean }>('/pokes', { toUserId: userId });
         set((state) => ({ pokedIds: state.pokedIds.includes(userId) ? state.pokedIds : [...state.pokedIds, userId] }));
@@ -601,9 +654,11 @@ export const useAppStore = create<AppState>()(
         await get().refreshGroups();
       },
 
-      addGroupMember: async (groupId, userId) => {
+      // Creates a pending GroupInvite, not an immediate join — the invitee
+      // shows up as a member only once they accept it themselves.
+      inviteGroupMember: async (groupId, userId) => {
         await api.post(`/groups/${groupId}/members`, { userId });
-        await get().refreshGroups();
+        await get().fetchGroupPendingInvites(groupId);
       },
 
       removeGroupMember: async (groupId, userId) => {

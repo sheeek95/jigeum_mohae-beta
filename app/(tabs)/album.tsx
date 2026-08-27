@@ -83,7 +83,9 @@ function SavedCard({ item }: { item: SavedPhotoItem }) {
       <Image source={{ uri: item.photoUrl }} style={styles.thumb} contentFit="cover" />
       <View style={styles.cardBody}>
         <View style={styles.cardTop}>
-          <Text style={styles.peer}>{item.peerName}님이 보낸 사진</Text>
+          <Text style={styles.peer}>
+            {item.peerName}님이 보낸 사진{item.groupName ? ` · ${item.groupName}` : ''}
+          </Text>
           <Text style={styles.time}>{item.savedAt ? formatRelative(item.savedAt) : ''}</Text>
         </View>
         <Text style={styles.caption} numberOfLines={1}>

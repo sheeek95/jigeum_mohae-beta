@@ -17,6 +17,8 @@ const TYPE_ICON: Record<NotificationType, keyof typeof Ionicons.glyphMap> = {
   'photo-reaction': 'chatbubble-ellipses-outline',
   'photo-reply': 'arrow-undo-outline',
   'save-request': 'download-outline',
+  'group-invite': 'people-outline',
+  'group-member-joined': 'person-add-outline',
 };
 
 function navigateFor(item: AppNotification) {
@@ -34,6 +36,13 @@ function navigateFor(item: AppNotification) {
     case 'photo-reply':
     case 'save-request':
       router.push('/(tabs)/album');
+      return;
+    case 'group-invite':
+      router.push('/group-invites');
+      return;
+    case 'group-member-joined':
+      if (item.groupId) router.push(`/group/${item.groupId}`);
+      else router.push('/(tabs)');
       return;
   }
 }

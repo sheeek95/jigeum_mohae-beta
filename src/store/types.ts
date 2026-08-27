@@ -14,11 +14,28 @@ export interface Group {
   id: string;
   name: string;
   kind: GroupKind;
+  isOwner: boolean;
   memberCount: number;
   dnd: boolean;
   subLabel: string;
   friendId?: string | null;
   members?: { id: string; displayName: string }[];
+}
+
+// A pending ask to join a GROUP-kind group, waiting on my response.
+export interface GroupInvite {
+  id: string;
+  groupId: string;
+  groupName: string;
+  inviterName: string;
+  createdAt: number;
+}
+
+// Owner-only: someone I've invited to a group who hasn't responded yet.
+export interface PendingGroupInvite {
+  id: string;
+  userId: string;
+  displayName: string;
 }
 
 export type SaveRequestStatus = 'none' | 'pending' | 'approved' | 'rejected';
@@ -37,6 +54,7 @@ export interface SavedPhotoItem {
   peerName: string; // who sent it
   caption: string;
   photoUrl: string;
+  groupName: string | null; // which GROUP it came from — null for a 1:1 friend
   sentAt: number;
   savedAt: number | null;
 }
@@ -89,7 +107,9 @@ export type NotificationType =
   | 'photo-received'
   | 'photo-reaction'
   | 'photo-reply'
-  | 'save-request';
+  | 'save-request'
+  | 'group-invite'
+  | 'group-member-joined';
 
 export interface AppNotification {
   id: string;
@@ -97,6 +117,7 @@ export interface AppNotification {
   title: string;
   body: string;
   photoId: string | null;
+  groupId: string | null;
   fromUserName: string | null;
   read: boolean;
   createdAt: number;
