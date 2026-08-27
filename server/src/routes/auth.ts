@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 
 import { randomAvatarGradient } from '../lib/avatar.js';
-import { badRequest } from '../lib/errors.js';
+import { badRequest, unauthorized } from '../lib/errors.js';
 import { generateInviteCode } from '../lib/inviteCode.js';
 import { signToken } from '../lib/jwt.js';
 import { verifyKakaoToken } from '../lib/kakao.js';
@@ -127,8 +127,21 @@ authRouter.post('/link-kakao', requireAuth, async (req, res) => {
   }
 });
 
+// A well-formed, signature-valid token whose user row is gone (e.g. the
+// backend's database was reset — see the Neon migration) is functionally
+// the same as an invalid token from the client's perspective: there's no
+// session to resume. Answer 401, not 500, so the client's existing
+// invalid-token handling (clear the stored token, fall back to login)
+// kicks in instead of surfacing a scary, unrecoverable-looking server error.
+function rethrowMissingUserAs401(err: unknown): never {
+  if (err instanceof Error && 'code' in err && err.code === 'P2025') {
+    throw unauthorized('세션이 만료됐어요. 다시 로그인해주세요');
+  }
+  throw err;
+}
+
 authRouter.get('/me', requireAuth, async (req, res) => {
-  const user = await prisma.user.findUniqueOrThrow({ where: { id: req.userId } });
+  const user = await prisma.user.findUniqueOrThrow({ where: { id: req.userId } }).catch(rethrowMissingUserAs401);
   res.json({ user });
 });
 
@@ -136,6 +149,8 @@ const patchMeSchema = z.object({ displayName: z.string().min(1).max(30) });
 
 authRouter.patch('/me', requireAuth, async (req, res) => {
   const { displayName } = patchMeSchema.parse(req.body);
-  const user = await prisma.user.update({ where: { id: req.userId }, data: { displayName } });
+  const user = await prisma.user
+    .update({ where: { id: req.userId }, data: { displayName } })
+    .catch(rethrowMissingUserAs401);
   res.json({ user });
 });
