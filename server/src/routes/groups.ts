@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 
+import { topCommentsFor } from '../lib/comments.js';
 import { badRequest, forbidden, notFound } from '../lib/errors.js';
 import { prisma } from '../lib/prisma.js';
 import { requireAuth } from '../middleware/auth.js';
@@ -99,4 +100,49 @@ groupsRouter.delete('/:id/members/:userId', async (req, res) => {
   if (!group || group.ownerId !== req.userId || group.kind !== 'GROUP') throw notFound('그룹');
   await prisma.groupMember.deleteMany({ where: { groupId: group.id, userId: req.params.userId } });
   res.status(204).end();
+});
+
+// The group's still-live (< 24h) photo history for the story viewer. A
+// PERSONAL group is really a two-sided conversation stored as two separate
+// Group rows (one per side, auto-created on invite accept) — merge both so
+// "우리 둘이 주고받은 사진" shows everything either side sent, not just mine.
+groupsRouter.get('/:id/photos', async (req, res) => {
+  const group = await prisma.group.findUnique({ where: { id: req.params.id }, include: { members: true } });
+  if (!group) throw notFound('그룹');
+
+  const isOwner = group.ownerId === req.userId;
+  const isMember = group.kind === 'GROUP' && group.members.some((m) => m.userId === req.userId);
+  const isFriendTarget = group.kind === 'PERSONAL' && group.friendUserId === req.userId;
+  if (!isOwner && !isMember && !isFriendTarget) throw forbidden('접근 권한이 없어요');
+
+  const groupIds = [group.id];
+  if (group.kind === 'PERSONAL' && group.friendUserId) {
+    const counterpart = await prisma.group.findFirst({
+      where: { ownerId: group.friendUserId, friendUserId: group.ownerId, kind: 'PERSONAL' },
+    });
+    if (counterpart) groupIds.push(counterpart.id);
+  }
+
+  const photos = await prisma.photo.findMany({
+    where: { groupId: { in: groupIds }, expiresAt: { gt: new Date() } },
+    include: { sender: true, deliveries: { where: { userId: req.userId } } },
+    orderBy: { createdAt: 'asc' },
+  });
+
+  const items = await Promise.all(
+    photos.map(async (p) => ({
+      photoId: p.id,
+      url: `/uploads/${p.storageKey}`,
+      caption: p.caption,
+      senderId: p.senderId,
+      senderName: p.sender.displayName,
+      createdAt: p.createdAt,
+      expiresAt: p.expiresAt,
+      isMine: p.senderId === req.userId,
+      saveStatus: p.deliveries[0]?.saveStatus ?? null,
+      comments: await topCommentsFor(p.id),
+    }))
+  );
+
+  res.json({ items });
 });

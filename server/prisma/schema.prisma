@@ -50,7 +50,7 @@ model User {
   pushTokens        PushToken[]
   notifications     Notification[]  @relation("NotificationRecipient")
   notificationsFrom Notification[]  @relation("NotificationFrom")
-  photoReactions    PhotoReaction[]
+  photoComments     PhotoComment[]
 }
 
 // One row per device registered for push (a user can have several — phone
@@ -152,7 +152,7 @@ model Photo {
   expiresAt  DateTime
   deletedAt  DateTime?
   deliveries PhotoDelivery[]
-  reactions  PhotoReaction[]
+  comments   PhotoComment[]
 }
 
 // Per-recipient view + save-request state (spec #22: requester asks, sender
@@ -173,19 +173,24 @@ model PhotoDelivery {
   @@unique([photoId, userId])
 }
 
-// One short text reaction per recipient per photo (the sender's own copy
-// never gets one — there's nothing to react to your own send). Shown to
-// the sender alongside the photo; triggers a PHOTO_REACTION notification.
-model PhotoReaction {
-  id        String   @id @default(cuid())
+// A photo's comment thread — anyone who can see the photo (the sender, or a
+// recipient via PhotoDelivery) can leave a top-level comment or reply one
+// level deep to another comment (@mentioning its author). A fresh top-level
+// comment notifies the photo's sender; a reply notifies the comment it
+// replies to, not the photo's sender (see routes/photos.ts).
+model PhotoComment {
+  id        String         @id @default(cuid())
   photoId   String
-  photo     Photo    @relation(fields: [photoId], references: [id], onDelete: Cascade)
+  photo     Photo          @relation(fields: [photoId], references: [id], onDelete: Cascade)
   userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   text      String
-  createdAt DateTime @default(now())
+  parentId  String?
+  parent    PhotoComment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies   PhotoComment[] @relation("CommentReplies")
+  createdAt DateTime       @default(now())
 
-  @@unique([photoId, userId])
+  @@index([photoId, createdAt])
 }
 
 enum NotificationType {
@@ -193,6 +198,7 @@ enum NotificationType {
   POKE
   PHOTO_RECEIVED
   PHOTO_REACTION
+  PHOTO_REPLY
   SAVE_REQUEST
 }
 

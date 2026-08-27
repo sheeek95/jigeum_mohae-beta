@@ -7,6 +7,7 @@ import multer from 'multer';
 import sharp from 'sharp';
 import { z } from 'zod';
 
+import { topCommentsFor } from '../lib/comments.js';
 import { badRequest, forbidden, notFound } from '../lib/errors.js';
 import { notify } from '../lib/notify.js';
 import { prisma } from '../lib/prisma.js';
@@ -129,11 +130,15 @@ photosRouter.get('/widget/latest', async (req, res) => {
   });
 });
 
+// "저장한 사진" — album's saved tab. Only APPROVED deliveries: an
+// un-saved received photo lives only in the group story viewer (see
+// GET /groups/:id/photos below), not here, so this list never needs a TTL
+// countdown — an APPROVED save is permanent.
 photosRouter.get('/received', async (req, res) => {
   const deliveries = await prisma.photoDelivery.findMany({
-    where: { userId: req.userId, expiredAt: null },
-    include: { photo: { include: { sender: true, reactions: { where: { userId: req.userId } } } } },
-    orderBy: { photo: { createdAt: 'desc' } },
+    where: { userId: req.userId, saveStatus: 'APPROVED' },
+    include: { photo: { include: { sender: true } } },
+    orderBy: { savedAt: 'desc' },
   });
   res.json({
     items: deliveries.map((d) => ({
@@ -143,21 +148,22 @@ photosRouter.get('/received', async (req, res) => {
       caption: d.photo.caption,
       senderName: d.photo.sender.displayName,
       createdAt: d.photo.createdAt,
-      expiresAt: d.photo.expiresAt,
-      saveStatus: d.saveStatus,
-      myReaction: d.photo.reactions[0]?.text ?? null,
+      savedAt: d.savedAt,
     })),
   });
 });
 
+// "보낸 사진" — album's sent tab, with every recipient's save status and a
+// preview of top-level comments left on each (tap-through to the full
+// thread, including replies, is GET /:photoId/comments).
 photosRouter.get('/sent', async (req, res) => {
   const photos = await prisma.photo.findMany({
     where: { senderId: req.userId },
-    include: { deliveries: { include: { user: true } }, group: true, reactions: { include: { user: true } } },
+    include: { deliveries: { include: { user: true } }, group: true },
     orderBy: { createdAt: 'desc' },
   });
-  res.json({
-    items: photos.map((p) => ({
+  const items = await Promise.all(
+    photos.map(async (p) => ({
       photoId: p.id,
       url: `/uploads/${p.storageKey}`,
       caption: p.caption,
@@ -171,9 +177,10 @@ photosRouter.get('/sent', async (req, res) => {
         displayName: d.user.displayName,
         saveStatus: d.saveStatus,
       })),
-      reactions: p.reactions.map((r) => ({ userId: r.userId, displayName: r.user.displayName, text: r.text })),
-    })),
-  });
+      comments: await topCommentsFor(p.id),
+    }))
+  );
+  res.json({ items });
 });
 
 photosRouter.post('/:photoId/request-save', async (req, res) => {
@@ -200,37 +207,80 @@ photosRouter.post('/:photoId/request-save', async (req, res) => {
   res.json({ delivery: updated });
 });
 
-const reactionSchema = z.object({ text: z.string().min(1).max(50) });
-
-// One short text reaction per recipient per photo — re-submitting replaces
-// the previous text rather than erroring, so recipients can freely change
-// their mind. Only a delivery's own recipient may react (the unique
-// PhotoDelivery lookup below also doubles as the "am I a recipient" check).
-photosRouter.post('/:photoId/reactions', async (req, res) => {
-  const { text } = reactionSchema.parse(req.body);
+// Anyone who can see a photo — its sender, or a recipient via PhotoDelivery
+// — can comment on it. Throws notFound/forbidden otherwise.
+async function assertPhotoAccess(photoId: string, userId: string) {
+  const photo = await prisma.photo.findUnique({ where: { id: photoId } });
+  if (!photo) throw notFound('사진');
+  if (photo.senderId === userId) return photo;
   const delivery = await prisma.photoDelivery.findUnique({
-    where: { photoId_userId: { photoId: req.params.photoId, userId: req.userId } },
-    include: { photo: true },
+    where: { photoId_userId: { photoId, userId } },
   });
-  if (!delivery) throw notFound('받은 사진');
+  if (!delivery) throw forbidden('이 사진에 접근할 수 없어요');
+  return photo;
+}
 
-  const [reactor, reaction] = await Promise.all([
+function mapComment(c: { id: string; userId: string; text: string; createdAt: Date; user: { displayName: string } }) {
+  return { id: c.id, userId: c.userId, displayName: c.user.displayName, text: c.text, createdAt: c.createdAt };
+}
+
+// Full thread for the story viewer's reactions sheet — top-level comments
+// with their replies nested one level under each.
+photosRouter.get('/:photoId/comments', async (req, res) => {
+  await assertPhotoAccess(req.params.photoId, req.userId);
+  const comments = await prisma.photoComment.findMany({
+    where: { photoId: req.params.photoId, parentId: null },
+    include: { user: true, replies: { include: { user: true }, orderBy: { createdAt: 'asc' } } },
+    orderBy: { createdAt: 'asc' },
+  });
+  res.json({
+    comments: comments.map((c) => ({ ...mapComment(c), replies: c.replies.map(mapComment) })),
+  });
+});
+
+const commentSchema = z.object({ text: z.string().min(1).max(200), parentId: z.string().optional() });
+
+// A top-level comment notifies the photo's sender (unless they're the one
+// commenting — e.g. replying to others on their own sent photo). A reply
+// notifies whoever wrote the comment being replied to instead, since that's
+// who the @mention actually reaches — not necessarily the photo's sender.
+photosRouter.post('/:photoId/comments', async (req, res) => {
+  const { text, parentId } = commentSchema.parse(req.body);
+  const photo = await assertPhotoAccess(req.params.photoId, req.userId);
+
+  let parent = null;
+  if (parentId) {
+    parent = await prisma.photoComment.findUnique({ where: { id: parentId } });
+    if (!parent || parent.photoId !== req.params.photoId) throw notFound('댓글');
+  }
+
+  const [author, comment] = await Promise.all([
     prisma.user.findUniqueOrThrow({ where: { id: req.userId } }),
-    prisma.photoReaction.upsert({
-      where: { photoId_userId: { photoId: req.params.photoId, userId: req.userId } },
-      update: { text },
-      create: { photoId: req.params.photoId, userId: req.userId, text },
+    prisma.photoComment.create({
+      data: { photoId: req.params.photoId, userId: req.userId, text, parentId: parent?.id },
+      include: { user: true },
     }),
   ]);
 
-  void notify(delivery.photo.senderId, 'PHOTO_REACTION', {
-    title: '내 사진에 반응이 달렸어요',
-    body: `${reactor.displayName}: ${text}`,
-    photoId: delivery.photoId,
-    fromUserId: req.userId,
-  });
+  if (parent) {
+    if (parent.userId !== req.userId) {
+      void notify(parent.userId, 'PHOTO_REPLY', {
+        title: '답글이 달렸어요',
+        body: `${author.displayName}: ${text}`,
+        photoId: req.params.photoId,
+        fromUserId: req.userId,
+      });
+    }
+  } else if (photo.senderId !== req.userId) {
+    void notify(photo.senderId, 'PHOTO_REACTION', {
+      title: '내 사진에 반응이 달렸어요',
+      body: `${author.displayName}: ${text}`,
+      photoId: req.params.photoId,
+      fromUserId: req.userId,
+    });
+  }
 
-  res.status(201).json({ reaction });
+  res.status(201).json({ comment: { ...mapComment(comment), replies: [] } });
 });
 
 const resolveSchema = z.object({ approve: z.boolean() });
