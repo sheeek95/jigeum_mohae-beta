@@ -13,6 +13,9 @@ export interface WidgetPhotoData {
 
 interface Props {
   photo: WidgetPhotoData | null;
+  // Which group/friend this widget instance is configured to show — null
+  // for the cross-group "whatever's newest" default. See widgetTargets.ts.
+  targetLabel?: string | null;
 }
 
 // The home-screen widget's UI, rendered through react-native-android-widget's
@@ -20,7 +23,7 @@ interface Props {
 // library's own primitives (FlexWidget/TextWidget/ImageWidget) so a plain
 // clickAction="OPEN_APP" / "OPEN_URI" is how taps are wired, not onPress.
 // Mirrors the in-app home widget card (app/(tabs)/index.tsx) at a glance.
-export function JigeumMohaeWidget({ photo }: Props) {
+export function JigeumMohaeWidget({ photo, targetLabel }: Props) {
   return (
     <FlexWidget
       clickAction={photo ? 'OPEN_APP' : 'OPEN_URI'}
@@ -44,7 +47,9 @@ export function JigeumMohaeWidget({ photo }: Props) {
         }}
       >
         <TextWidget
-          text="지금 모해"
+          text={targetLabel ? `지금 모해 · ${targetLabel}` : '지금 모해'}
+          truncate="END"
+          maxLines={1}
           style={{ fontSize: 12, fontWeight: '700', color: colors.textMid }}
         />
       </FlexWidget>

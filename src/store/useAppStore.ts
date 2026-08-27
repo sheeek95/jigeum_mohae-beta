@@ -11,7 +11,7 @@ import { clearStoredSessionToken, getStoredSessionToken, setStoredSessionToken }
 import { getApiUrl, loadStoredApiUrl, setApiUrl } from '../api/urlConfig';
 import { registerForPushNotificationsAsync } from '../notifications/registerPush';
 import { syncAndroidWidget } from '../widgets/syncAndroidWidget';
-import { requestIosWidgetReload, syncIosWidgetCredentials } from '../widgets/syncIosWidget';
+import { requestIosWidgetReload, syncIosWidgetCredentials, syncIosWidgetGroups } from '../widgets/syncIosWidget';
 import type {
   ApiComment,
   ApiDnd,
@@ -442,6 +442,9 @@ export const useAppStore = create<AppState>()(
         const { groups } = await api.get<{ groups: ApiGroup[] }>('/groups');
         if (!isCurrentTicket('groups', ticket)) return;
         set({ groups: groups.map(mapGroup) });
+        // Keeps the iOS widget's configuration picker in sync — see
+        // syncIosWidgetGroups's own comment for why no reload is needed here.
+        syncIosWidgetGroups(groups.map((g) => ({ id: g.id, name: g.name, kind: g.kind })));
       },
 
       refreshAlbum: async () => {
@@ -465,15 +468,10 @@ export const useAppStore = create<AppState>()(
         set({ widgetPhoto });
         // Push straight to any placed Android home-screen widget too — see
         // syncAndroidWidget.tsx for why this matters (30-min native floor).
-        syncAndroidWidget(
-          widgetPhoto && {
-            url: widgetPhoto.photoUrl,
-            senderName: widgetPhoto.senderName,
-            groupName: widgetPhoto.groupName,
-            caption: widgetPhoto.caption,
-            timeLabel: widgetPhoto.timeLabel,
-          }
-        ).catch(() => {});
+        // Each widget instance fetches its own configured group's photo, so
+        // this call takes no arguments — it's not "here's the photo",
+        // it's "go check on yourselves".
+        syncAndroidWidget().catch(() => {});
         // iOS side just needs a "refresh now" nudge — the widget's own
         // TimelineProvider fetches the photo itself (see syncIosWidget.ts).
         requestIosWidgetReload();

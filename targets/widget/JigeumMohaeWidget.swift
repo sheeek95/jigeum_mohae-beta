@@ -1,3 +1,4 @@
+import AppIntents
 import SwiftUI
 import WidgetKit
 
@@ -25,6 +26,17 @@ struct WidgetPhotoResponse: Decodable {
   let photo: Photo?
 }
 
+struct GroupPhotosResponse: Decodable {
+  struct Item: Decodable {
+    let url: String
+    let caption: String
+    let senderName: String
+    let createdAt: String
+    let isMine: Bool
+  }
+  let items: [Item]
+}
+
 struct JigeumMohaeEntry: TimelineEntry {
   let date: Date
   let senderName: String?
@@ -33,11 +45,108 @@ struct JigeumMohaeEntry: TimelineEntry {
   let timeLabel: String?
   let image: UIImage?
   let signedIn: Bool
+  // Which group/friend this widget instance is configured to — shown as a
+  // persistent header label so multiple widgets are distinguishable at a
+  // glance (nil for the cross-group "whatever's newest" default).
+  let targetLabel: String?
 }
 
-struct Provider: TimelineProvider {
+private func placeholderEntry(targetLabel: String? = nil, signedIn: Bool = true) -> JigeumMohaeEntry {
+  JigeumMohaeEntry(date: Date(), senderName: nil, groupName: nil, caption: nil, timeLabel: nil, image: nil, signedIn: signedIn, targetLabel: targetLabel)
+}
+
+private func formatTimeLabel(_ iso8601: String) -> String {
+  let formatter = ISO8601DateFormatter()
+  let timeFormatter = DateFormatter()
+  timeFormatter.dateFormat = "a h:mm"
+  timeFormatter.locale = Locale(identifier: "ko_KR")
+  return formatter.date(from: iso8601).map { timeFormatter.string(from: $0) } ?? ""
+}
+
+private func loadImage(url: String) async -> UIImage? {
+  guard let imageURL = URL(string: url) else { return nil }
+  guard let (data, _) = try? await URLSession.shared.data(from: imageURL) else { return nil }
+  return UIImage(data: data)
+}
+
+// Shared by both the legacy (<iOS 17) cross-group-only provider and the
+// iOS 17+ AppIntent-configurable provider below — everything except which
+// endpoint to hit (and the resulting targetLabel) is identical.
+private func fetchEntry(groupId: String?, targetLabel: String?) async -> JigeumMohaeEntry {
+  let defaults = UserDefaults(suiteName: appGroup)
+  guard
+    let token = defaults?.string(forKey: SharedKey.authToken),
+    let apiBaseURL = defaults?.string(forKey: SharedKey.apiBaseURL)
+  else {
+    return placeholderEntry(targetLabel: targetLabel, signedIn: false)
+  }
+
+  let path = groupId.map { "/groups/\($0)/photos" } ?? "/photos/widget/latest"
+  guard let requestURL = URL(string: "\(apiBaseURL)\(path)") else {
+    return placeholderEntry(targetLabel: targetLabel)
+  }
+  var request = URLRequest(url: requestURL)
+  request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+
+  do {
+    let (data, _) = try await URLSession.shared.data(for: request)
+
+    if groupId != nil {
+      let decoded = try JSONDecoder().decode(GroupPhotosResponse.self, from: data)
+      // Oldest-first from the server, and only ever what I RECEIVED — never
+      // my own sent photos — matching the original cross-group widget.
+      guard let latest = decoded.items.last(where: { !$0.isMine }) else {
+        return placeholderEntry(targetLabel: targetLabel)
+      }
+      let image = await loadImage(url: latest.url)
+      return JigeumMohaeEntry(
+        date: Date(), senderName: latest.senderName, groupName: nil, caption: latest.caption,
+        timeLabel: formatTimeLabel(latest.createdAt), image: image, signedIn: true, targetLabel: targetLabel
+      )
+    } else {
+      let decoded = try JSONDecoder().decode(WidgetPhotoResponse.self, from: data)
+      guard let photo = decoded.photo else { return placeholderEntry(targetLabel: targetLabel) }
+      let image = await loadImage(url: photo.url)
+      return JigeumMohaeEntry(
+        date: Date(), senderName: photo.senderName, groupName: photo.groupName, caption: photo.caption,
+        timeLabel: formatTimeLabel(photo.createdAt), image: image, signedIn: true, targetLabel: targetLabel
+      )
+    }
+  } catch {
+    return placeholderEntry(targetLabel: targetLabel)
+  }
+}
+
+// MARK: - iOS 17+: per-widget-instance configurable target
+
+@available(iOS 17.0, *)
+struct ConfigurableProvider: AppIntentTimelineProvider {
+  typealias Entry = JigeumMohaeEntry
+  typealias Intent = SelectWidgetTargetIntent
+
   func placeholder(in context: Context) -> JigeumMohaeEntry {
-    JigeumMohaeEntry(date: Date(), senderName: nil, groupName: nil, caption: nil, timeLabel: nil, image: nil, signedIn: true)
+    placeholderEntry()
+  }
+
+  func snapshot(for configuration: SelectWidgetTargetIntent, in context: Context) async -> JigeumMohaeEntry {
+    placeholderEntry(targetLabel: configuration.target?.name)
+  }
+
+  func timeline(for configuration: SelectWidgetTargetIntent, in context: Context) async -> Timeline<JigeumMohaeEntry> {
+    let entry = await fetchEntry(groupId: configuration.target?.id, targetLabel: configuration.target?.name)
+    // Native OS refresh has a practical ~30 min floor; the app also calls
+    // WidgetCenter.reloadTimelines() proactively after it polls new data
+    // (see refreshWidget() in useAppStore.ts) so this is just the fallback.
+    let nextRefresh = Calendar.current.date(byAdding: .minute, value: 30, to: Date()) ?? Date().addingTimeInterval(1800)
+    return Timeline(entries: [entry], policy: .after(nextRefresh))
+  }
+}
+
+// MARK: - Pre-iOS 17 fallback: cross-group only, no per-widget configuration
+
+struct LegacyProvider: TimelineProvider {
+  func placeholder(in context: Context) -> JigeumMohaeEntry {
+    placeholderEntry()
   }
 
   func getSnapshot(in context: Context, completion: @escaping (JigeumMohaeEntry) -> Void) {
@@ -46,61 +155,15 @@ struct Provider: TimelineProvider {
 
   func getTimeline(in context: Context, completion: @escaping (Timeline<JigeumMohaeEntry>) -> Void) {
     Task {
-      let entry = await fetchEntry()
-      // Native OS refresh has a practical ~30 min floor; the app also calls
-      // WidgetCenter.reloadTimelines() proactively after it polls new data
-      // (see refreshWidget() in useAppStore.ts) so this is just the fallback.
+      let entry = await fetchEntry(groupId: nil, targetLabel: nil)
       let nextRefresh = Calendar.current.date(byAdding: .minute, value: 30, to: Date()) ?? Date().addingTimeInterval(1800)
       completion(Timeline(entries: [entry], policy: .after(nextRefresh)))
-    }
-  }
-
-  private func fetchEntry() async -> JigeumMohaeEntry {
-    let defaults = UserDefaults(suiteName: appGroup)
-    guard
-      let token = defaults?.string(forKey: SharedKey.authToken),
-      let apiBaseURL = defaults?.string(forKey: SharedKey.apiBaseURL),
-      let requestURL = URL(string: "\(apiBaseURL)/photos/widget/latest")
-    else {
-      return JigeumMohaeEntry(date: Date(), senderName: nil, groupName: nil, caption: nil, timeLabel: nil, image: nil, signedIn: false)
-    }
-
-    var request = URLRequest(url: requestURL)
-    request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-
-    do {
-      let (data, _) = try await URLSession.shared.data(for: request)
-      let decoded = try JSONDecoder().decode(WidgetPhotoResponse.self, from: data)
-      guard let photo = decoded.photo, let imageURL = URL(string: photo.url) else {
-        return JigeumMohaeEntry(date: Date(), senderName: nil, groupName: nil, caption: nil, timeLabel: nil, image: nil, signedIn: true)
-      }
-
-      let (imageData, _) = try await URLSession.shared.data(from: imageURL)
-      let image = UIImage(data: imageData)
-
-      let formatter = ISO8601DateFormatter()
-      let timeFormatter = DateFormatter()
-      timeFormatter.dateFormat = "a h:mm"
-      timeFormatter.locale = Locale(identifier: "ko_KR")
-      let timeLabel = formatter.date(from: photo.createdAt).map { timeFormatter.string(from: $0) } ?? ""
-
-      return JigeumMohaeEntry(
-        date: Date(),
-        senderName: photo.senderName,
-        groupName: photo.groupName,
-        caption: photo.caption,
-        timeLabel: timeLabel,
-        image: image,
-        signedIn: true
-      )
-    } catch {
-      return JigeumMohaeEntry(date: Date(), senderName: nil, groupName: nil, caption: nil, timeLabel: nil, image: nil, signedIn: true)
     }
   }
 }
 
 struct JigeumMohaeWidgetEntryView: View {
-  var entry: Provider.Entry
+  var entry: JigeumMohaeEntry
 
   var body: some View {
     ZStack {
@@ -111,9 +174,10 @@ struct JigeumMohaeWidgetEntryView: View {
           Circle()
             .fill(Color(red: 1, green: 0.435, blue: 0.506))
             .frame(width: 6, height: 6)
-          Text("지금 모해")
+          Text(entry.targetLabel.map { "지금 모해 · \($0)" } ?? "지금 모해")
             .font(.system(size: 12, weight: .bold))
             .foregroundColor(Color(red: 0.77, green: 0.72, blue: 0.9))
+            .lineLimit(1)
           Spacer()
         }
 
@@ -169,11 +233,28 @@ struct JigeumMohaeWidgetEntryView: View {
   }
 }
 
+@available(iOS 17.0, *)
 struct JigeumMohaeWidget: Widget {
   let kind: String = "JigeumMohaeWidget"
 
   var body: some WidgetConfiguration {
-    StaticConfiguration(kind: kind, provider: Provider()) { entry in
+    AppIntentConfiguration(kind: kind, intent: SelectWidgetTargetIntent.self, provider: ConfigurableProvider()) { entry in
+      JigeumMohaeWidgetEntryView(entry: entry)
+        .containerBackground(for: .widget) {
+          Color(red: 0x27 / 255, green: 0x1A / 255, blue: 0x47 / 255)
+        }
+    }
+    .configurationDisplayName("지금 모해")
+    .description("친구가 보낸 사진이 바로 뜨는 위젯 · 길게 눌러 그룹/친구를 고를 수 있어요.")
+    .supportedFamilies([.systemSmall, .systemMedium])
+  }
+}
+
+struct JigeumMohaeWidgetLegacy: Widget {
+  let kind: String = "JigeumMohaeWidget"
+
+  var body: some WidgetConfiguration {
+    StaticConfiguration(kind: kind, provider: LegacyProvider()) { entry in
       JigeumMohaeWidgetEntryView(entry: entry)
         .containerBackground(for: .widget) {
           Color(red: 0x27 / 255, green: 0x1A / 255, blue: 0x47 / 255)
@@ -188,6 +269,10 @@ struct JigeumMohaeWidget: Widget {
 @main
 struct JigeumMohaeWidgetBundle: WidgetBundle {
   var body: some Widget {
-    JigeumMohaeWidget()
+    if #available(iOS 17.0, *) {
+      JigeumMohaeWidget()
+    } else {
+      JigeumMohaeWidgetLegacy()
+    }
   }
 }

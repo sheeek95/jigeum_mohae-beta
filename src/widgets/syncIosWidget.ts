@@ -28,3 +28,13 @@ export function syncIosWidgetCredentials(token: string | null, apiBaseURL: strin
 export function requestIosWidgetReload() {
   ExtensionStorage.reloadWidget(WIDGET_KIND);
 }
+
+// The widget's per-instance configuration UI (long-press → "위젯 편집") runs
+// as its own WidgetKit process with no network/JS access — its EntityQuery
+// (see targets/widget/WidgetTargetIntent.swift) reads this list synchronously
+// instead. No reload needed here: unlike the timeline (fetched by
+// requestIosWidgetReload above), the config picker's list is read fresh
+// on-demand whenever the OS shows it, not cached against a timeline.
+export function syncIosWidgetGroups(groups: { id: string; name: string; kind: string }[]) {
+  storage.set('groups', groups);
+}
