@@ -19,5 +19,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   on: { backgroundColor: colors.yellow, borderColor: colors.yellow },
-  check: { fontSize: 12, fontWeight: '700', color: colors.yellowText },
+  check: { fontSize: 12, fontFamily: 'SCDream-Bold', color: colors.yellowText },
 });

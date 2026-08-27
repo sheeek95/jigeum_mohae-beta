@@ -191,7 +191,7 @@ export default function SettingsScreen() {
 
 const styles = StyleSheet.create({
   nav: { paddingHorizontal: 18, paddingTop: 14, paddingBottom: 6 },
-  navTitle: { fontSize: 18, fontWeight: '800', color: colors.textHi },
+  navTitle: { fontSize: 18, fontFamily: 'SCDream-ExtraBold', color: colors.textHi },
   profileRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -223,7 +223,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.line,
   },
-  t1: { fontSize: 13, fontWeight: '700', color: colors.textHi },
+  t1: { fontSize: 13, fontFamily: 'SCDream-Bold', color: colors.textHi },
   t2: { fontSize: 10.5, color: colors.textDim, marginTop: 2 },
   manage: { fontSize: 11, color: colors.textDim },
   infoLine: { fontSize: 10.5, color: colors.textDim, lineHeight: 17, padding: 15 },

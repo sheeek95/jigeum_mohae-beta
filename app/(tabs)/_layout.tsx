@@ -26,7 +26,7 @@ export default function TabsLayout() {
           paddingBottom: insets.bottom + EXTRA_LIFT,
           paddingTop: 6,
         },
-        tabBarLabelStyle: { fontSize: 10, fontWeight: '700' },
+        tabBarLabelStyle: { fontSize: 10, fontFamily: 'SCDream-Bold' },
       }}>
       <Tabs.Screen
         name="index"

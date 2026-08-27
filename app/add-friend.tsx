@@ -134,7 +134,7 @@ export default function AddFriendScreen() {
                 <View style={styles.shareRow}>
                   <Pressable style={styles.shareBtn} onPress={shareLink}>
                     <View style={[styles.shareIc, { backgroundColor: colors.yellow }]}>
-                      <Text style={{ fontWeight: '800', color: colors.yellowText }}>K</Text>
+                      <Text style={{ fontFamily: 'SCDream-ExtraBold', color: colors.yellowText }}>K</Text>
                     </View>
                     <Text style={styles.shareBtnText}>카카오톡</Text>
                   </Pressable>
@@ -190,29 +190,29 @@ export default function AddFriendScreen() {
 
 const styles = StyleSheet.create({
   nav: { paddingHorizontal: 18, paddingTop: 14, paddingBottom: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  navTitle: { fontSize: 16, fontWeight: '800', color: colors.textHi },
+  navTitle: { fontSize: 16, fontFamily: 'SCDream-ExtraBold', color: colors.textHi },
   navIcon: { width: 30, height: 30, borderRadius: 10, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },
   tabRow: { flexDirection: 'row', gap: 8, marginHorizontal: 16, marginBottom: 14, backgroundColor: colors.bgVoid, borderRadius: 16, padding: 4, borderWidth: 1, borderColor: colors.line },
   tab: { flex: 1, alignItems: 'center', paddingVertical: 9, borderRadius: 12 },
   tabOn: { backgroundColor: colors.surfaceHi },
-  tabText: { fontSize: 12.5, fontWeight: '700', color: colors.textDim },
+  tabText: { fontSize: 12.5, fontFamily: 'SCDream-Bold', color: colors.textDim },
   tabTextOn: { color: colors.textHi },
   body: { flex: 1, paddingHorizontal: 16 },
   linkCard: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.line, borderRadius: radius.xl, padding: 16 },
-  lcLabel: { fontSize: 12, fontWeight: '700', color: colors.textMid },
+  lcLabel: { fontSize: 12, fontFamily: 'SCDream-Bold', color: colors.textMid },
   linkBox: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.bgVoid, borderWidth: 1, borderColor: colors.line, borderRadius: 14, padding: 11 },
   linkText: { flex: 1, fontSize: 12, color: colors.textMid },
   input: { flex: 1, fontSize: 12, color: colors.textHi, padding: 0 },
   copyBtn: { backgroundColor: colors.yellow, borderRadius: 10, paddingHorizontal: 11, paddingVertical: 7 },
   copyBtnDone: { backgroundColor: colors.surfaceHi },
-  copyBtnText: { fontSize: 11.5, fontWeight: '700', color: colors.yellowText },
+  copyBtnText: { fontSize: 11.5, fontFamily: 'SCDream-Bold', color: colors.yellowText },
   shareRow: { flexDirection: 'row', gap: 9, marginTop: 12 },
   shareBtn: { flex: 1, alignItems: 'center', gap: 6, backgroundColor: colors.bgVoid, borderWidth: 1, borderColor: colors.line, borderRadius: 14, paddingVertical: 12 },
   shareIc: { width: 30, height: 30, borderRadius: 9, backgroundColor: colors.surfaceHi, alignItems: 'center', justifyContent: 'center' },
-  shareBtnText: { fontSize: 11, color: colors.textMid, fontWeight: '600' },
+  shareBtnText: { fontSize: 11, color: colors.textMid, fontFamily: 'SCDream-Medium' },
   linkNote: { fontSize: 10.5, color: colors.textDim, lineHeight: 17, marginTop: 12 },
   errorWrap: { alignItems: 'center', marginTop: 40, gap: 12, paddingHorizontal: 20 },
   errorText: { fontSize: 12.5, color: colors.textMid, textAlign: 'center' },
   retryBtn: { backgroundColor: colors.surfaceHi, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 9 },
-  retryBtnText: { fontSize: 12.5, fontWeight: '700', color: colors.textHi },
+  retryBtnText: { fontSize: 12.5, fontFamily: 'SCDream-Bold', color: colors.textHi },
 });

@@ -77,5 +77,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  text: { fontSize: 13.5, fontWeight: '700' },
+  text: { fontSize: 13.5, fontFamily: 'SCDream-Bold' },
 });

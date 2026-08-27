@@ -112,14 +112,14 @@ export default function NotificationsScreen() {
 
 const styles = StyleSheet.create({
   nav: { paddingHorizontal: 18, paddingTop: 14, paddingBottom: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  navTitle: { fontSize: 16, fontWeight: '800', color: colors.textHi },
+  navTitle: { fontSize: 16, fontFamily: 'SCDream-ExtraBold', color: colors.textHi },
   navIcon: { width: 30, height: 30, borderRadius: 10, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   emptyText: { color: colors.textDim, fontSize: 13 },
   errorWrap: { alignItems: 'center', marginTop: 40, gap: 12, paddingHorizontal: 20 },
   errorText: { fontSize: 12.5, color: colors.textMid, textAlign: 'center' },
   retryBtn: { backgroundColor: colors.surfaceHi, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 9 },
-  retryBtnText: { fontSize: 12.5, fontWeight: '700', color: colors.textHi },
+  retryBtnText: { fontSize: 12.5, fontFamily: 'SCDream-Bold', color: colors.textHi },
   list: { paddingHorizontal: 16, paddingBottom: 24, gap: 8 },
   row: {
     flexDirection: 'row',
@@ -133,7 +133,7 @@ const styles = StyleSheet.create({
   },
   icon: { width: 30, height: 30, borderRadius: 10, backgroundColor: colors.surfaceHi, alignItems: 'center', justifyContent: 'center', marginTop: 1 },
   info: { flex: 1, gap: 2 },
-  title: { fontSize: 13, fontWeight: '700', color: colors.textHi },
+  title: { fontSize: 13, fontFamily: 'SCDream-Bold', color: colors.textHi },
   body: { fontSize: 11.5, color: colors.textMid, lineHeight: 16 },
   time: { fontSize: 10, color: colors.textDim, marginTop: 2 },
 });

@@ -127,7 +127,7 @@ export default function InviteAcceptScreen() {
 
 const styles = StyleSheet.create({
   nav: { paddingHorizontal: 18, paddingTop: 14, paddingBottom: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  navTitle: { fontSize: 16, fontWeight: '800', color: colors.textHi },
+  navTitle: { fontSize: 16, fontFamily: 'SCDream-ExtraBold', color: colors.textHi },
   navIcon: { width: 30, height: 30, borderRadius: 10, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },
   body: { flex: 1, paddingHorizontal: 16, alignItems: 'center', justifyContent: 'center' },
   errorText: { color: colors.textDim, fontSize: 13, textAlign: 'center' },
@@ -140,11 +140,11 @@ const styles = StyleSheet.create({
     padding: 18,
     alignItems: 'center',
   },
-  incomingTitle: { fontSize: 14, fontWeight: '800', color: colors.textHi, marginTop: 12, textAlign: 'center' },
+  incomingTitle: { fontSize: 14, fontFamily: 'SCDream-ExtraBold', color: colors.textHi, marginTop: 12, textAlign: 'center' },
   incomingSub: { fontSize: 11.5, color: colors.textDim, marginTop: 4, textAlign: 'center' },
   incomingGroup: { alignSelf: 'stretch', marginTop: 16 },
   groupRow: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: colors.bgVoid, borderRadius: 16, padding: 11, borderWidth: 1, borderColor: colors.line, marginBottom: 8 },
-  gName: { fontSize: 13, fontWeight: '700', color: colors.textHi },
+  gName: { fontSize: 13, fontFamily: 'SCDream-Bold', color: colors.textHi },
   gSub: { fontSize: 10.5, color: colors.textDim },
   incomingActions: { flexDirection: 'row', gap: 10, marginTop: 16, alignSelf: 'stretch' },
 });

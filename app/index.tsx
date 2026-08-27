@@ -46,7 +46,7 @@ export default function Index() {
           onPress={() => bootstrap()}
           style={{ backgroundColor: colors.surfaceHi, borderRadius: 12, paddingHorizontal: 18, paddingVertical: 10 }}
         >
-          <Text style={{ color: colors.textHi, fontSize: 13, fontWeight: '700' }}>다시 시도</Text>
+          <Text style={{ color: colors.textHi, fontSize: 13, fontFamily: 'SCDream-Bold' }}>다시 시도</Text>
         </Pressable>
       </View>
     );

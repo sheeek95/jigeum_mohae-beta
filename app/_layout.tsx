@@ -1,13 +1,15 @@
+import { useFonts } from 'expo-font';
 import * as Notifications from 'expo-notifications';
 import { router, Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as Updates from 'expo-updates';
 import { useEffect } from 'react';
+import { Text, TextInput } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { useAppStore } from '../src/store/useAppStore';
-import { colors } from '../src/theme/tokens';
+import { colors, fonts } from '../src/theme/tokens';
 
 // Screenshot/screen-recording prevention is per-screen now (see
 // useScreenCaptureBlock), not app-wide — only screens that actually show
@@ -21,7 +23,33 @@ Notifications.setNotificationHandler({
   }),
 });
 
+// 에스코어드림(S-Core Dream) as the app-wide default — every screen's plain
+// <Text>/<TextInput> (no explicit fontFamily) picks this up automatically.
+// A component's own style still wins for any key it sets, which is why the
+// fontWeight → fontFamily sweep across app/src replaced every '600'/'700'/
+// '800' with the matching SCDream weight file — a custom OTF only has the
+// one weight it was cut at, so leaving `fontWeight` on top of it either
+// does nothing or triggers synthetic (fake) bolding depending on platform.
+const TextAny = Text as unknown as { defaultProps?: { style?: unknown } };
+TextAny.defaultProps = TextAny.defaultProps || {};
+TextAny.defaultProps.style = [{ fontFamily: fonts.regular }, TextAny.defaultProps.style];
+
+const TextInputAny = TextInput as unknown as { defaultProps?: { style?: unknown } };
+TextInputAny.defaultProps = TextInputAny.defaultProps || {};
+TextInputAny.defaultProps.style = [{ fontFamily: fonts.regular }, TextInputAny.defaultProps.style];
+
 export default function RootLayout() {
+  // expo-font's native module is already compiled into the installed
+  // binary (expo-vector-icons has depended on it from the start, and every
+  // Ionicons glyph in this app already renders through it) — bundling new
+  // OTF assets and loading them here is JS+asset only, safe to OTA.
+  const [fontsLoaded] = useFonts({
+    [fonts.regular]: require('../assets/fonts/SCDreamRegular.otf'),
+    [fonts.medium]: require('../assets/fonts/SCDreamMedium.otf'),
+    [fonts.bold]: require('../assets/fonts/SCDreamBold.otf'),
+    [fonts.extraBold]: require('../assets/fonts/SCDreamExtraBold.otf'),
+  });
+
   const bootstrap = useAppStore((s) => s.bootstrap);
 
   // Provisions (or re-authenticates) this device's backend account as soon
@@ -58,6 +86,10 @@ export default function RootLayout() {
     });
     return () => sub.remove();
   }, []);
+
+  // Keep the blank frame (system font, briefly) rather than flashing
+  // mismatched fonts across screens as they mount one by one.
+  if (!fontsLoaded) return null;
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>

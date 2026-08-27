@@ -56,7 +56,7 @@ export function PromptModal({ visible, title, placeholder, initialValue = '', co
 const styles = StyleSheet.create({
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', alignItems: 'center', justifyContent: 'center', padding: 24 },
   card: { alignSelf: 'stretch', maxWidth: 360, backgroundColor: colors.surface, borderRadius: radius.xl, borderWidth: 1, borderColor: colors.line, padding: 18 },
-  title: { fontSize: 14, fontWeight: '800', color: colors.textHi, marginBottom: 12 },
+  title: { fontSize: 14, fontFamily: 'SCDream-ExtraBold', color: colors.textHi, marginBottom: 12 },
   input: {
     backgroundColor: colors.bgVoid,
     borderWidth: 1,

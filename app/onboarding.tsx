@@ -165,7 +165,7 @@ export default function Onboarding() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bgVoid },
   skipRow: { alignItems: 'flex-end', paddingHorizontal: 20, paddingTop: 8 },
-  skipText: { fontSize: 13, color: colors.textDim, fontWeight: '700', padding: 6 },
+  skipText: { fontSize: 13, color: colors.textDim, fontFamily: 'SCDream-Bold', padding: 6 },
   illustrationWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', minHeight: 220 },
   logo: { width: 100, height: 100, borderRadius: 30 },
   widgetDemo: {
@@ -186,7 +186,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     borderBottomLeftRadius: 4,
   },
-  pokeBubbleText: { color: colors.coralText, fontWeight: '800', fontSize: 15 },
+  pokeBubbleText: { color: colors.coralText, fontFamily: 'SCDream-ExtraBold', fontSize: 15 },
   clockDemo: {
     width: 130,
     height: 130,
@@ -198,10 +198,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  clockText: { fontSize: 15, fontWeight: '800', color: colors.yellow },
+  clockText: { fontSize: 15, fontFamily: 'SCDream-ExtraBold', color: colors.yellow },
   copy: { alignItems: 'center', marginBottom: 8 },
-  eyebrow: { fontSize: 12, color: colors.coral, fontWeight: '800', letterSpacing: 1, marginBottom: 10 },
-  headline: { fontSize: 24, fontWeight: '800', color: colors.textHi, textAlign: 'center', lineHeight: 32 },
+  eyebrow: { fontSize: 12, color: colors.coral, fontFamily: 'SCDream-ExtraBold', letterSpacing: 1, marginBottom: 10 },
+  headline: { fontSize: 24, fontFamily: 'SCDream-ExtraBold', color: colors.textHi, textAlign: 'center', lineHeight: 32 },
   sub: { fontSize: 13.5, color: colors.textMid, textAlign: 'center', marginTop: 12, lineHeight: 21 },
   dots: { flexDirection: 'row', gap: 6, justifyContent: 'center', marginVertical: 18 },
   dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.surfaceHi },
@@ -210,7 +210,7 @@ const styles = StyleSheet.create({
   loginError: {
     color: colors.coral,
     fontSize: 12.5,
-    fontWeight: '700',
+    fontFamily: 'SCDream-Bold',
     textAlign: 'center',
     paddingHorizontal: 24,
     marginBottom: 10,

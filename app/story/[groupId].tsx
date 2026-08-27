@@ -48,7 +48,7 @@ function InitialAvatar({ name, gradient, size = 28 }: { name: string; gradient: 
           justifyContent: 'center',
         }}
       >
-        <Text style={{ fontSize: size * 0.4, fontWeight: '800', color: 'rgba(0,0,0,0.55)' }}>{initial(name)}</Text>
+        <Text style={{ fontSize: size * 0.4, fontFamily: 'SCDream-ExtraBold', color: 'rgba(0,0,0,0.55)' }}>{initial(name)}</Text>
       </View>
     </View>
   );
@@ -492,7 +492,7 @@ const styles = StyleSheet.create({
   centerWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 14, paddingHorizontal: 24 },
   errorText: { color: colors.textMid, fontSize: 13, textAlign: 'center' },
   retryBtn: { backgroundColor: colors.surfaceHi, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 9 },
-  retryBtnText: { fontSize: 12.5, fontWeight: '700', color: colors.textHi },
+  retryBtnText: { fontSize: 12.5, fontFamily: 'SCDream-Bold', color: colors.textHi },
 
   tapzone: { position: 'absolute', top: 90, bottom: 150 },
 
@@ -501,19 +501,19 @@ const styles = StyleSheet.create({
   barFill: { height: '100%', backgroundColor: colors.yellow, borderRadius: 2 },
 
   header: { flexDirection: 'row', alignItems: 'center', gap: 9, paddingHorizontal: 14, paddingTop: 10 },
-  headerName: { fontSize: 13, fontWeight: '800', color: '#fff' },
+  headerName: { fontSize: 13, fontFamily: 'SCDream-ExtraBold', color: '#fff' },
   headerTime: { fontSize: 10.5, color: 'rgba(255,255,255,0.7)' },
   mineTag: { backgroundColor: 'rgba(255,255,255,0.16)', borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3 },
-  mineTagText: { fontSize: 10, fontWeight: '700', color: 'rgba(255,255,255,0.85)' },
+  mineTagText: { fontSize: 10, fontFamily: 'SCDream-Bold', color: 'rgba(255,255,255,0.85)' },
   closeBtn: { width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(0,0,0,0.32)', alignItems: 'center', justifyContent: 'center' },
 
   bottom: { marginTop: 'auto', paddingHorizontal: 14, paddingBottom: 8, gap: 10 },
   captionRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   captionTxt: { flex: 1, fontSize: 12.5, color: 'rgba(255,255,255,0.92)' },
   savePill: { backgroundColor: colors.yellow, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6 },
-  savePillText: { fontSize: 11, fontWeight: '800', color: '#231600' },
+  savePillText: { fontSize: 11, fontFamily: 'SCDream-ExtraBold', color: '#231600' },
   savePillPending: { backgroundColor: 'rgba(255,255,255,0.16)' },
-  savePillPendingText: { fontSize: 11, fontWeight: '800', color: 'rgba(255,255,255,0.75)' },
+  savePillPendingText: { fontSize: 11, fontFamily: 'SCDream-ExtraBold', color: 'rgba(255,255,255,0.75)' },
 
   ticker: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6 },
   tickerText: { flex: 1, fontSize: 10.5, color: 'rgba(255,255,255,0.65)' },
@@ -543,14 +543,14 @@ const styles = StyleSheet.create({
     maxHeight: '65%',
   },
   sheetHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
-  sheetTitle: { fontSize: 13, fontWeight: '800', color: colors.textHi },
+  sheetTitle: { fontSize: 13, fontFamily: 'SCDream-ExtraBold', color: colors.textHi },
   sheetClose: { width: 26, height: 26, borderRadius: 13, backgroundColor: colors.surfaceHi, alignItems: 'center', justifyContent: 'center' },
   sheetEmpty: { fontSize: 12.5, color: colors.textDim, textAlign: 'center', paddingVertical: 20 },
   sheetRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
   sheetReplyRow: { marginLeft: 38 },
-  sheetName: { fontSize: 12, fontWeight: '800', color: colors.textHi },
+  sheetName: { fontSize: 12, fontFamily: 'SCDream-ExtraBold', color: colors.textHi },
   sheetText: { fontSize: 12, color: colors.textMid, lineHeight: 17 },
-  sheetReplyBtn: { fontSize: 10.5, fontWeight: '700', color: colors.textDim, marginTop: 2 },
+  sheetReplyBtn: { fontSize: 10.5, fontFamily: 'SCDream-Bold', color: colors.textDim, marginTop: 2 },
 
   replyContext: {
     flexDirection: 'row',
@@ -562,8 +562,8 @@ const styles = StyleSheet.create({
     paddingVertical: 7,
     marginTop: 12,
   },
-  replyContextText: { fontSize: 11, color: colors.textMid, fontWeight: '700' },
-  replyContextCancel: { fontSize: 11, color: colors.textDim, fontWeight: '700' },
+  replyContextText: { fontSize: 11, color: colors.textMid, fontFamily: 'SCDream-Bold' },
+  replyContextCancel: { fontSize: 11, color: colors.textDim, fontFamily: 'SCDream-Bold' },
 
   mentionMenu: {
     backgroundColor: colors.surfaceHi,

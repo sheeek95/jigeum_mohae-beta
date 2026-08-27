@@ -87,7 +87,7 @@ export default function PokeScreen() {
 
 const styles = StyleSheet.create({
   nav: { paddingHorizontal: 18, paddingTop: 14, paddingBottom: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  navTitle: { fontSize: 18, fontWeight: '800', color: colors.textHi },
+  navTitle: { fontSize: 18, fontFamily: 'SCDream-ExtraBold', color: colors.textHi },
   navIcon: { width: 32, height: 32, borderRadius: 10, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },
   list: { paddingHorizontal: 16, paddingBottom: 24, gap: 8, flexGrow: 1 },
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 80 },
@@ -103,10 +103,10 @@ const styles = StyleSheet.create({
     borderColor: colors.line,
   },
   info: { flex: 1 },
-  name: { fontSize: 14, fontWeight: '700', color: colors.textHi },
+  name: { fontSize: 14, fontFamily: 'SCDream-Bold', color: colors.textHi },
   status: { fontSize: 11.5, color: colors.textDim, marginTop: 1 },
   pokeBtn: { backgroundColor: colors.coralDim, borderRadius: 20, paddingHorizontal: 13, paddingVertical: 8 },
   pokeBtnSent: { backgroundColor: colors.coral },
-  pokeBtnText: { fontSize: 11.5, fontWeight: '700', color: colors.coral },
+  pokeBtnText: { fontSize: 11.5, fontFamily: 'SCDream-Bold', color: colors.coral },
   pokeBtnTextSent: { color: colors.coralText },
 });

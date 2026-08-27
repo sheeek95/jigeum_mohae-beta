@@ -11,5 +11,5 @@ export function SectionLabel({ children, style }: { children: string; style?: Vi
 }
 
 const styles = StyleSheet.create({
-  text: { fontSize: 11, color: colors.textDim, fontWeight: '700' },
+  text: { fontSize: 11, color: colors.textDim, fontFamily: 'SCDream-Bold' },
 });

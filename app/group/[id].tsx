@@ -118,7 +118,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   navIcon: { width: 30, height: 30, alignItems: 'center', justifyContent: 'center' },
-  navTitle: { flex: 1, textAlign: 'center', fontSize: 15, fontWeight: '800', color: colors.textHi },
+  navTitle: { flex: 1, textAlign: 'center', fontSize: 15, fontFamily: 'SCDream-ExtraBold', color: colors.textHi },
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   emptyText: { color: colors.textDim, fontSize: 13 },
   sectionLabel: { marginHorizontal: 20, marginTop: 14, marginBottom: 2 },
@@ -142,6 +142,6 @@ const styles = StyleSheet.create({
   },
   personRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   fallbackAvatar: { width: 34, height: 34, borderRadius: 17, backgroundColor: colors.surfaceHi },
-  t1: { fontSize: 13, fontWeight: '700', color: colors.textHi },
+  t1: { fontSize: 13, fontFamily: 'SCDream-Bold', color: colors.textHi },
   infoLine: { fontSize: 10.5, color: colors.textDim, lineHeight: 17, padding: 15 },
 });

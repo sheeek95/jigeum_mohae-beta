@@ -52,7 +52,7 @@ const styles = StyleSheet.create({
   },
   coral: { backgroundColor: colors.coral },
   yellow: { backgroundColor: colors.surfaceHi, borderWidth: 1, borderColor: 'rgba(255,214,102,0.4)' },
-  text: { fontWeight: '700', fontSize: 13 },
+  text: { fontFamily: 'SCDream-Bold', fontSize: 13 },
   textCoral: { color: colors.coralText },
   textYellow: { color: colors.yellow },
 });

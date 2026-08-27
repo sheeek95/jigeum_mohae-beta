@@ -146,7 +146,7 @@ const styles = StyleSheet.create({
   },
   pill: { backgroundColor: 'rgba(0,0,0,0.35)', borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6 },
   pillTouchable: { backgroundColor: 'rgba(0,0,0,0.35)', borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6 },
-  pillText: { color: '#fff', fontSize: 11, fontWeight: '600' },
+  pillText: { color: '#fff', fontSize: 11, fontFamily: 'SCDream-Medium' },
   flashOverlay: { backgroundColor: '#fff' },
   footerRow: { position: 'absolute', bottom: 0, left: 0, right: 0, alignItems: 'center', paddingBottom: 20 },
   shutter: {
@@ -161,7 +161,7 @@ const styles = StyleSheet.create({
   previewPhoto: { flex: 1, backgroundColor: '#3A2761' },
   previewActions: { flexDirection: 'row', gap: 12, padding: 18, backgroundColor: '#0A0714' },
   permissionWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32, gap: 6 },
-  permissionTitle: { color: colors.textHi, fontSize: 16, fontWeight: '800', marginTop: 12 },
+  permissionTitle: { color: colors.textHi, fontSize: 16, fontFamily: 'SCDream-ExtraBold', marginTop: 12 },
   permissionSub: { color: colors.textDim, fontSize: 12.5, textAlign: 'center', marginTop: 6, lineHeight: 19 },
   permissionActions: { flexDirection: 'row', gap: 10, alignSelf: 'stretch', marginTop: 20 },
   demoLink: { color: colors.textDim, fontSize: 11.5, marginTop: 18, textDecorationLine: 'underline' },

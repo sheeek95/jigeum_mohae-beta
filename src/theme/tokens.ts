@@ -51,3 +51,14 @@ export const fontSize = {
   xl: 21,
   display: 38,
 };
+
+// 에스코어드림(S-Core Dream) — loaded via useFonts in app/_layout.tsx, and
+// set as the app-wide Text/TextInput default there. Only bundle the weights
+// the app actually uses (fontWeight: '600'|'700'|'800' plus the implicit
+// default '400') — every other Text just inherits SCDreamRegular.
+export const fonts = {
+  regular: 'SCDream-Regular',
+  medium: 'SCDream-Medium',
+  bold: 'SCDream-Bold',
+  extraBold: 'SCDream-ExtraBold',
+} as const;

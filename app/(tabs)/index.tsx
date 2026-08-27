@@ -188,7 +188,7 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   nav: { paddingHorizontal: 18, paddingTop: 14, paddingBottom: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  navTitle: { fontSize: 18, fontWeight: '800', color: colors.textHi },
+  navTitle: { fontSize: 18, fontFamily: 'SCDream-ExtraBold', color: colors.textHi },
   navIcons: { flexDirection: 'row', gap: 8 },
   navIcon: { width: 32, height: 32, borderRadius: 10, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },
   navBadge: {
@@ -203,9 +203,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  navBadgeText: { fontSize: 8.5, fontWeight: '800', color: '#fff' },
+  navBadgeText: { fontSize: 8.5, fontFamily: 'SCDream-ExtraBold', color: '#fff' },
   timeHero: { alignItems: 'center', marginTop: 10, marginBottom: 14 },
-  time: { fontSize: 40, fontWeight: '700', color: colors.textHi, letterSpacing: -1 },
+  time: { fontSize: 40, fontFamily: 'SCDream-Bold', color: colors.textHi, letterSpacing: -1 },
   date: { fontSize: 12.5, color: colors.textMid, marginTop: 2 },
   emptyWrap: { paddingTop: 10 },
   block: {
@@ -226,7 +226,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.line,
   },
-  t1: { fontSize: 13, fontWeight: '700', color: colors.textHi },
+  t1: { fontSize: 13, fontFamily: 'SCDream-Bold', color: colors.textHi },
   list: { paddingHorizontal: 18, paddingBottom: 24, gap: 10 },
   card: {
     backgroundColor: colors.surface,
@@ -238,7 +238,7 @@ const styles = StyleSheet.create({
   cardTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
   cardTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   badgeDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.coral },
-  cardTitle: { fontSize: 13, fontWeight: '700', color: colors.textHi },
+  cardTitle: { fontSize: 13, fontFamily: 'SCDream-Bold', color: colors.textHi },
   cardMemberCount: { fontSize: 10.5, color: colors.textDim },
   avatarRow: { flexDirection: 'row', alignItems: 'center' },
   avatarStack: { borderRadius: 12, borderWidth: 2, borderColor: colors.surface },
@@ -251,11 +251,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  avatarOverflowText: { fontSize: 8.5, fontWeight: '700', color: colors.textMid },
+  avatarOverflowText: { fontSize: 8.5, fontFamily: 'SCDream-Bold', color: colors.textMid },
   cardPhotoBox: { height: 132, borderRadius: 15, overflow: 'hidden', backgroundColor: colors.surfaceHi, justifyContent: 'flex-end' },
   cardPhotoOverlay: { backgroundColor: 'rgba(0,0,0,0.2)' },
   cardPhotoCaption: { padding: 10 },
-  cardPhotoTime: { fontSize: 11.5, fontWeight: '700', color: '#fff' },
+  cardPhotoTime: { fontSize: 11.5, fontFamily: 'SCDream-Bold', color: '#fff' },
   cardPhotoText: { fontSize: 10.5, color: 'rgba(255,255,255,0.85)', marginTop: 2 },
   cardWaitingBox: {
     height: 92,
@@ -268,7 +268,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 4,
   },
-  cardWaitingTxt: { fontSize: 12, fontWeight: '700', color: colors.yellow },
+  cardWaitingTxt: { fontSize: 12, fontFamily: 'SCDream-Bold', color: colors.yellow },
   registerBtn: {
     marginTop: 9,
     height: 34,
@@ -279,5 +279,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 6,
   },
-  registerBtnText: { fontSize: 11.5, fontWeight: '700', color: colors.coral },
+  registerBtnText: { fontSize: 11.5, fontFamily: 'SCDream-Bold', color: colors.coral },
 });
