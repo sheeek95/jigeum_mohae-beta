@@ -22,15 +22,28 @@ export default function AddFriendScreen() {
   const [copiedLink, setCopiedLink] = useState(false);
   const [copiedCode, setCopiedCode] = useState(false);
   const [codeInput, setCodeInput] = useState('');
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [retryTick, setRetryTick] = useState(0);
 
   const inviteLink = useAppStore((s) => s.inviteLink);
   const refreshInvite = useAppStore((s) => s.refreshInvite);
   const authStatus = useAppStore((s) => s.authStatus);
   const apiUrl = useAppStore((s) => s.apiUrl);
 
+  // refreshInvite() had no error handling at the call site, so a failed
+  // request (timeout, offline, server error) left this screen spinning
+  // forever with no way to recover short of leaving and re-entering.
   useEffect(() => {
-    if (authStatus === 'ready' && !inviteLink) refreshInvite();
-  }, [authStatus, inviteLink, refreshInvite]);
+    if (authStatus !== 'ready' || inviteLink) return;
+    let cancelled = false;
+    setLoadError(null);
+    refreshInvite().catch((err) => {
+      if (!cancelled) setLoadError(err instanceof Error ? err.message : '초대 링크를 불러오지 못했어요');
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [authStatus, inviteLink, refreshInvite, retryTick]);
 
   const code = inviteLink?.code ?? null;
   // Short, our-own-domain redirect to the (long, can't-be-shortened-at-the-
@@ -90,7 +103,16 @@ export default function AddFriendScreen() {
         {tab === 'send' ? (
           <View style={styles.body}>
             {!installLink || !code ? (
-              <ActivityIndicator color={colors.coral} style={{ marginTop: 40 }} />
+              loadError ? (
+                <View style={styles.errorWrap}>
+                  <Text style={styles.errorText}>{loadError}</Text>
+                  <Pressable style={styles.retryBtn} onPress={() => setRetryTick((n) => n + 1)}>
+                    <Text style={styles.retryBtnText}>다시 시도</Text>
+                  </Pressable>
+                </View>
+              ) : (
+                <ActivityIndicator color={colors.coral} style={{ marginTop: 40 }} />
+              )
             ) : (
               <View style={styles.linkCard}>
                 <Text style={styles.lcLabel}>앱 설치 링크</Text>
@@ -189,4 +211,8 @@ const styles = StyleSheet.create({
   shareIc: { width: 30, height: 30, borderRadius: 9, backgroundColor: colors.surfaceHi, alignItems: 'center', justifyContent: 'center' },
   shareBtnText: { fontSize: 11, color: colors.textMid, fontWeight: '600' },
   linkNote: { fontSize: 10.5, color: colors.textDim, lineHeight: 17, marginTop: 12 },
+  errorWrap: { alignItems: 'center', marginTop: 40, gap: 12, paddingHorizontal: 20 },
+  errorText: { fontSize: 12.5, color: colors.textMid, textAlign: 'center' },
+  retryBtn: { backgroundColor: colors.surfaceHi, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 9 },
+  retryBtnText: { fontSize: 12.5, fontWeight: '700', color: colors.textHi },
 });
