@@ -1,12 +1,15 @@
 // 지금 모해 — backend data model.
-// Dev uses SQLite (zero setup); swap `provider`/`url` to postgresql for prod,
-// the schema itself is Postgres-compatible (no SQLite-only features used).
+// Production runs on Neon Postgres — Render's free web service has no
+// persistent disk, so a SQLite file there gets wiped on every redeploy
+// (the actual root cause behind accounts repeatedly resetting). Dev can
+// still point DATABASE_URL at a local Postgres instance; the schema itself
+// has never used any SQLite-only feature.
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
