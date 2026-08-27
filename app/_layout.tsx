@@ -49,12 +49,12 @@ export default function RootLayout() {
     })();
   }, []);
 
-  // A tapped "저장 요청" push (see server/src/routes/photos.ts) carries the
-  // photo's requester so we can jump straight to the album's sent tab.
+  // Every push now pairs with a persisted Notification row (see
+  // server/src/lib/notify.ts) — tapping any of them opens the in-app 알림함
+  // list rather than trying to deep-link per push type here.
   useEffect(() => {
-    const sub = Notifications.addNotificationResponseReceivedListener((response) => {
-      const data = response.notification.request.content.data;
-      if (data?.type === 'save-request') router.push('/(tabs)/album');
+    const sub = Notifications.addNotificationResponseReceivedListener(() => {
+      router.push('/notifications');
     });
     return () => sub.remove();
   }, []);
@@ -68,6 +68,7 @@ export default function RootLayout() {
           <Stack.Screen name="onboarding" />
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="add-friend" options={{ presentation: 'modal' }} />
+          <Stack.Screen name="notifications" options={{ presentation: 'modal' }} />
           <Stack.Screen name="invite/[code]" options={{ presentation: 'modal' }} />
           <Stack.Screen name="camera" options={{ presentation: 'fullScreenModal', animation: 'fade' }} />
           <Stack.Screen name="share" options={{ presentation: 'modal' }} />

@@ -18,6 +18,8 @@ import type {
   ApiGroup,
   ApiInvite,
   ApiInvitePreview,
+  ApiNotification,
+  ApiNotificationType,
   ApiReceivedPhoto,
   ApiSentPhoto,
   ApiUser,
@@ -25,6 +27,7 @@ import type {
 } from '../api/types';
 import type {
   AlbumItem,
+  AppNotification,
   AvatarGradient,
   CapturedPhoto,
   DndSettings,
@@ -32,6 +35,7 @@ import type {
   Group,
   InviteLink,
   Me,
+  NotificationType,
   SaveRequestStatus,
   WidgetPhoto,
 } from './types';
@@ -62,6 +66,8 @@ interface AppState {
   album: AlbumItem[];
   capturedPhoto: CapturedPhoto | null;
   pokedIds: string[];
+  notifications: AppNotification[];
+  unreadNotificationCount: number;
 
   apiUrl: string;
   completeOnboarding: () => void;
@@ -75,6 +81,10 @@ interface AppState {
   refreshAlbum: () => Promise<void>;
   refreshWidget: () => Promise<void>;
   refreshInvite: () => Promise<void>;
+  refreshNotifications: () => Promise<void>;
+  refreshUnreadCount: () => Promise<void>;
+  markNotificationsRead: () => Promise<void>;
+  submitReaction: (photoId: string, text: string) => Promise<void>;
 
   poke: (userId: string) => Promise<boolean>;
   loadInviteByCode: (code: string) => Promise<void>;
@@ -154,6 +164,7 @@ function mapReceived(p: ApiReceivedPhoto): AlbumItem {
     sentAt: new Date(p.createdAt).getTime(),
     expiresAt: new Date(p.expiresAt).getTime(),
     saveStatus: p.saveStatus.toLowerCase() as SaveRequestStatus,
+    myReaction: p.myReaction,
   };
 }
 
@@ -170,7 +181,29 @@ function mapSent(p: ApiSentPhoto): AlbumItem[] {
     saveStatus: d.saveStatus.toLowerCase() as SaveRequestStatus,
     targetUserId: d.userId,
     groupId: p.groupId,
+    reactions: p.reactions,
   }));
+}
+
+const NOTIFICATION_TYPE_MAP: Record<ApiNotificationType, NotificationType> = {
+  FRIEND_ADDED: 'friend-added',
+  POKE: 'poke',
+  PHOTO_RECEIVED: 'photo-received',
+  PHOTO_REACTION: 'photo-reaction',
+  SAVE_REQUEST: 'save-request',
+};
+
+function mapNotification(n: ApiNotification): AppNotification {
+  return {
+    id: n.id,
+    type: NOTIFICATION_TYPE_MAP[n.type],
+    title: n.title,
+    body: n.body,
+    photoId: n.photoId,
+    fromUserName: n.fromUserName,
+    read: n.read,
+    createdAt: new Date(n.createdAt).getTime(),
+  };
 }
 
 function mapWidget(p: ApiWidgetPhoto | null): WidgetPhoto | null {
@@ -219,6 +252,8 @@ export const useAppStore = create<AppState>()(
       album: [],
       capturedPhoto: null,
       pokedIds: [],
+      notifications: [],
+      unreadNotificationCount: 0,
       apiUrl: getApiUrl(),
 
       completeOnboarding: () => set({ hasOnboarded: true }),
@@ -314,6 +349,7 @@ export const useAppStore = create<AppState>()(
           get().refreshAlbum(),
           get().refreshWidget(),
           get().refreshInvite(),
+          get().refreshUnreadCount(),
           (async () => {
             const { dnd } = await api.get<{ dnd: ApiDnd }>('/settings/dnd');
             set({ dnd: mapDnd(dnd) });
@@ -373,6 +409,34 @@ export const useAppStore = create<AppState>()(
         const { invite } = await api.get<{ invite: ApiInvite }>('/invites/mine');
         if (!isCurrentTicket('invite', ticket)) return;
         set({ inviteLink: { code: invite.code } });
+      },
+
+      refreshNotifications: async () => {
+        const ticket = takeTicket('notifications');
+        const { notifications } = await api.get<{ notifications: ApiNotification[] }>('/notifications');
+        if (!isCurrentTicket('notifications', ticket)) return;
+        set({
+          notifications: notifications.map(mapNotification),
+          unreadNotificationCount: notifications.filter((n) => !n.read).length,
+        });
+      },
+
+      refreshUnreadCount: async () => {
+        const { count } = await api.get<{ count: number }>('/notifications/unread-count');
+        set({ unreadNotificationCount: count });
+      },
+
+      markNotificationsRead: async () => {
+        await api.post('/notifications/read-all');
+        set((state) => ({
+          notifications: state.notifications.map((n) => ({ ...n, read: true })),
+          unreadNotificationCount: 0,
+        }));
+      },
+
+      submitReaction: async (photoId, text) => {
+        await api.post(`/photos/${photoId}/reactions`, { text });
+        await get().refreshAlbum();
       },
 
       poke: async (userId) => {

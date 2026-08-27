@@ -38,6 +38,27 @@ export interface AlbumItem {
   saveStatus: SaveRequestStatus;
   targetUserId?: string; // sent items only — who to approve/reject for
   groupId?: string | null; // sent items only — which of my groups this went to
+  myReaction?: string | null; // received items only — my own reaction text, if left
+  reactions?: PhotoReaction[]; // sent items only — every recipient's reaction
+}
+
+export interface PhotoReaction {
+  userId: string;
+  displayName: string;
+  text: string;
+}
+
+export type NotificationType = 'friend-added' | 'poke' | 'photo-received' | 'photo-reaction' | 'save-request';
+
+export interface AppNotification {
+  id: string;
+  type: NotificationType;
+  title: string;
+  body: string;
+  photoId: string | null;
+  fromUserName: string | null;
+  read: boolean;
+  createdAt: number;
 }
 
 export interface InviteLink {

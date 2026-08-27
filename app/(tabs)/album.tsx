@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { PromptModal } from '../../src/components/PromptModal';
 import { ScreenGradient } from '../../src/components/ScreenGradient';
 import { useScreenCaptureBlock } from '../../src/hooks/useScreenCaptureBlock';
 import { useAppStore } from '../../src/store/useAppStore';
@@ -72,9 +73,11 @@ export default function AlbumScreen() {
   const requestSave = useAppStore((s) => s.requestSave);
   const resolveSave = useAppStore((s) => s.resolveSave);
   const deleteSentPhoto = useAppStore((s) => s.deleteSentPhoto);
+  const submitReaction = useAppStore((s) => s.submitReaction);
   const refreshAlbum = useAppStore((s) => s.refreshAlbum);
   const authStatus = useAppStore((s) => s.authStatus);
   const [, forceTick] = useState(0);
+  const [reactingItem, setReactingItem] = useState<AlbumItem | null>(null);
 
   function confirmDelete(photoId: string, peerName: string) {
     Alert.alert('사진을 삭제할까요?', `${peerName}에게 보낸 사진이 상대 화면에서도 바로 사라져요.`, [
@@ -96,6 +99,17 @@ export default function AlbumScreen() {
       await resolveSave(photoId, targetUserId, approve);
     } catch (err) {
       Alert.alert('처리하지 못했어요', err instanceof Error ? err.message : undefined);
+    }
+  }
+
+  async function handleSubmitReaction(text: string) {
+    const item = reactingItem;
+    setReactingItem(null);
+    if (!item) return;
+    try {
+      await submitReaction(item.photoId, text);
+    } catch (err) {
+      Alert.alert('반응을 남기지 못했어요', err instanceof Error ? err.message : undefined);
     }
   }
 
@@ -159,11 +173,36 @@ export default function AlbumScreen() {
                       onResolve={(approve) => item.targetUserId && handleResolveSave(item.photoId, item.targetUserId, approve)}
                     />
                   </View>
+                  {item.direction === 'received' && (
+                    <Pressable style={styles.reactionRow} onPress={() => setReactingItem(item)}>
+                      <Ionicons name="chatbubble-ellipses-outline" size={12} color={colors.textDim} />
+                      <Text style={styles.reactionText} numberOfLines={1}>
+                        {item.myReaction ? item.myReaction : '반응 남기기'}
+                      </Text>
+                    </Pressable>
+                  )}
+                  {item.direction === 'sent' && !!item.reactions?.length && (
+                    <View style={styles.reactionRow}>
+                      <Ionicons name="chatbubble-ellipses-outline" size={12} color={colors.textDim} />
+                      <Text style={styles.reactionText} numberOfLines={1}>
+                        {item.reactions.map((r) => `${r.displayName}: ${r.text}`).join(' · ')}
+                      </Text>
+                    </View>
+                  )}
                 </View>
               </View>
             )}
           />
         )}
+
+        <PromptModal
+          visible={!!reactingItem}
+          title="반응 남기기"
+          placeholder="이 사진에 짧은 반응을 남겨보세요"
+          initialValue={reactingItem?.myReaction ?? ''}
+          onCancel={() => setReactingItem(null)}
+          onConfirm={handleSubmitReaction}
+        />
       </SafeAreaView>
     </ScreenGradient>
   );
@@ -193,6 +232,8 @@ const styles = StyleSheet.create({
   deleteBtn: { padding: 2 },
   caption: { fontSize: 12, color: colors.textMid },
   cardBottom: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 },
+  reactionRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 6 },
+  reactionText: { flex: 1, fontSize: 10.5, color: colors.textDim },
   expire: { fontSize: 10, color: colors.textDim, fontWeight: '600' },
   requestBtn: { backgroundColor: colors.surfaceHi, borderRadius: 14, paddingHorizontal: 10, paddingVertical: 5 },
   requestBtnText: { fontSize: 10.5, fontWeight: '700', color: colors.textMid },

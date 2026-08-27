@@ -102,6 +102,8 @@ export default function HomeScreen() {
   const refreshFriends = useAppStore((s) => s.refreshFriends);
   const refreshAlbum = useAppStore((s) => s.refreshAlbum);
   const refreshWidget = useAppStore((s) => s.refreshWidget);
+  const refreshUnreadCount = useAppStore((s) => s.refreshUnreadCount);
+  const unreadNotificationCount = useAppStore((s) => s.unreadNotificationCount);
   const authStatus = useAppStore((s) => s.authStatus);
 
   // Keeps the home-screen native widget's own data fresh in the background —
@@ -114,12 +116,14 @@ export default function HomeScreen() {
       refreshFriends();
       refreshAlbum();
       refreshWidget();
+      refreshUnreadCount();
       const id = setInterval(() => {
         refreshAlbum();
         refreshWidget();
+        refreshUnreadCount();
       }, POLL_MS);
       return () => clearInterval(id);
-    }, [authStatus, refreshGroups, refreshFriends, refreshAlbum, refreshWidget])
+    }, [authStatus, refreshGroups, refreshFriends, refreshAlbum, refreshWidget, refreshUnreadCount])
   );
 
   const latestByGroup = useMemo(() => {
@@ -141,9 +145,19 @@ export default function HomeScreen() {
       <SafeAreaView style={{ flex: 1 }} edges={['top']}>
         <View style={styles.nav}>
           <Text style={styles.navTitle}>홈</Text>
-          <Pressable style={styles.navIcon} onPress={() => router.push('/add-friend')}>
-            <Ionicons name="person-add-outline" size={16} color={colors.textMid} />
-          </Pressable>
+          <View style={styles.navIcons}>
+            <Pressable style={styles.navIcon} onPress={() => router.push('/notifications')}>
+              <Ionicons name="notifications-outline" size={16} color={colors.textMid} />
+              {unreadNotificationCount > 0 && (
+                <View style={styles.navBadge}>
+                  <Text style={styles.navBadgeText}>{unreadNotificationCount > 9 ? '9+' : unreadNotificationCount}</Text>
+                </View>
+              )}
+            </Pressable>
+            <Pressable style={styles.navIcon} onPress={() => router.push('/add-friend')}>
+              <Ionicons name="person-add-outline" size={16} color={colors.textMid} />
+            </Pressable>
+          </View>
         </View>
 
         <View style={styles.timeHero}>
@@ -175,7 +189,21 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   nav: { paddingHorizontal: 18, paddingTop: 14, paddingBottom: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   navTitle: { fontSize: 18, fontWeight: '800', color: colors.textHi },
+  navIcons: { flexDirection: 'row', gap: 8 },
   navIcon: { width: 32, height: 32, borderRadius: 10, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },
+  navBadge: {
+    position: 'absolute',
+    top: -3,
+    right: -3,
+    minWidth: 15,
+    height: 15,
+    borderRadius: 8,
+    paddingHorizontal: 3,
+    backgroundColor: colors.coral,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  navBadgeText: { fontSize: 8.5, fontWeight: '800', color: '#fff' },
   timeHero: { alignItems: 'center', marginTop: 10, marginBottom: 14 },
   time: { fontSize: 40, fontWeight: '700', color: colors.textHi, letterSpacing: -1 },
   date: { fontSize: 12.5, color: colors.textMid, marginTop: 2 },

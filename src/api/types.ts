@@ -68,6 +68,7 @@ export interface ApiReceivedPhoto {
   createdAt: string;
   expiresAt: string;
   saveStatus: ApiSaveStatus;
+  myReaction: string | null;
 }
 
 export interface ApiSentDelivery {
@@ -75,6 +76,12 @@ export interface ApiSentDelivery {
   userId: string;
   displayName: string;
   saveStatus: ApiSaveStatus;
+}
+
+export interface ApiPhotoReaction {
+  userId: string;
+  displayName: string;
+  text: string;
 }
 
 export interface ApiSentPhoto {
@@ -86,4 +93,18 @@ export interface ApiSentPhoto {
   createdAt: string;
   expiresAt: string;
   deliveries: ApiSentDelivery[];
+  reactions: ApiPhotoReaction[];
+}
+
+export type ApiNotificationType = 'FRIEND_ADDED' | 'POKE' | 'PHOTO_RECEIVED' | 'PHOTO_REACTION' | 'SAVE_REQUEST';
+
+export interface ApiNotification {
+  id: string;
+  type: ApiNotificationType;
+  title: string;
+  body: string;
+  photoId: string | null;
+  fromUserName: string | null;
+  read: boolean;
+  createdAt: string;
 }
