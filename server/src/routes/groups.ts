@@ -198,6 +198,20 @@ groupsRouter.post('/invites/:id/respond', async (req, res) => {
   res.status(204).end();
 });
 
+// Owner-only: who they've already invited to THIS group and is still
+// pending, so the invite UI can grey those friends out instead of letting
+// the owner spam the same invite (harmless either way — upsert on the
+// invite already no-ops a repeat — but this gives the UI something to show).
+groupsRouter.get('/:id/invites', async (req, res) => {
+  const group = await prisma.group.findUnique({ where: { id: req.params.id } });
+  if (!group || group.ownerId !== req.userId || group.kind !== 'GROUP') throw notFound('그룹');
+  const invites = await prisma.groupInvite.findMany({
+    where: { groupId: group.id },
+    include: { invitee: true },
+  });
+  res.json({ invites: invites.map((i) => ({ id: i.id, userId: i.inviteeId, displayName: i.invitee.displayName })) });
+});
+
 groupsRouter.delete('/:id/members/:userId', async (req, res) => {
   const group = await prisma.group.findUnique({ where: { id: req.params.id } });
   if (!group || group.ownerId !== req.userId || group.kind !== 'GROUP') throw notFound('그룹');
