@@ -72,6 +72,7 @@ export default function RootLayout() {
           <Stack.Screen name="invite/[code]" options={{ presentation: 'modal' }} />
           <Stack.Screen name="camera" options={{ presentation: 'fullScreenModal', animation: 'fade' }} />
           <Stack.Screen name="share" options={{ presentation: 'modal' }} />
+          <Stack.Screen name="story/[groupId]" options={{ presentation: 'fullScreenModal', animation: 'fade' }} />
         </Stack>
       </SafeAreaProvider>
     </GestureHandlerRootView>

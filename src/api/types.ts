@@ -59,6 +59,7 @@ export interface ApiWidgetPhoto {
   createdAt: string;
 }
 
+// Album's "저장한 사진" tab — only ever APPROVED saves, so no TTL fields.
 export interface ApiReceivedPhoto {
   deliveryId: string;
   photoId: string;
@@ -66,9 +67,7 @@ export interface ApiReceivedPhoto {
   caption: string;
   senderName: string;
   createdAt: string;
-  expiresAt: string;
-  saveStatus: ApiSaveStatus;
-  myReaction: string | null;
+  savedAt: string | null;
 }
 
 export interface ApiSentDelivery {
@@ -78,7 +77,10 @@ export interface ApiSentDelivery {
   saveStatus: ApiSaveStatus;
 }
 
-export interface ApiPhotoReaction {
+// Lightweight top-level-only preview used by the sent/group-photos list
+// endpoints — the full thread (with replies) is a separate fetch, see
+// ApiComment below.
+export interface ApiCommentPreview {
   userId: string;
   displayName: string;
   text: string;
@@ -93,10 +95,40 @@ export interface ApiSentPhoto {
   createdAt: string;
   expiresAt: string;
   deliveries: ApiSentDelivery[];
-  reactions: ApiPhotoReaction[];
+  comments: ApiCommentPreview[];
 }
 
-export type ApiNotificationType = 'FRIEND_ADDED' | 'POKE' | 'PHOTO_RECEIVED' | 'PHOTO_REACTION' | 'SAVE_REQUEST';
+export interface ApiComment {
+  id: string;
+  userId: string;
+  displayName: string;
+  text: string;
+  createdAt: string;
+  replies: Omit<ApiComment, 'replies'>[];
+}
+
+// A group's still-live (<24h) photo history for the story viewer — see
+// GET /groups/:id/photos.
+export interface ApiGroupPhoto {
+  photoId: string;
+  url: string;
+  caption: string;
+  senderId: string;
+  senderName: string;
+  createdAt: string;
+  expiresAt: string;
+  isMine: boolean;
+  saveStatus: ApiSaveStatus | null;
+  comments: ApiCommentPreview[];
+}
+
+export type ApiNotificationType =
+  | 'FRIEND_ADDED'
+  | 'POKE'
+  | 'PHOTO_RECEIVED'
+  | 'PHOTO_REACTION'
+  | 'PHOTO_REPLY'
+  | 'SAVE_REQUEST';
 
 export interface ApiNotification {
   id: string;

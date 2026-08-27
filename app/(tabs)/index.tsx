@@ -10,7 +10,7 @@ import { PulseRing } from '../../src/components/PulseRing';
 import { ScreenGradient } from '../../src/components/ScreenGradient';
 import { useScreenCaptureBlock } from '../../src/hooks/useScreenCaptureBlock';
 import { useAppStore } from '../../src/store/useAppStore';
-import type { AlbumItem, Group } from '../../src/store/types';
+import type { Group, SentPhotoItem } from '../../src/store/types';
 import { colors, radius } from '../../src/theme/tokens';
 import { formatRelative } from '../../src/utils/time';
 
@@ -27,7 +27,7 @@ const WEEKDAYS = ['일요일', '월요일', '화요일', '수요일', '목요일
 const POLL_MS = 6000;
 const AVATAR_PEEK = 3;
 
-function GroupCard({ group, latest }: { group: Group; latest: AlbumItem | undefined }) {
+function GroupCard({ group, latest }: { group: Group; latest: SentPhotoItem | undefined }) {
   const friends = useAppStore((s) => s.friends);
   const members = group.members ?? [];
   const shown = members.slice(0, AVATAR_PEEK);
@@ -59,7 +59,7 @@ function GroupCard({ group, latest }: { group: Group; latest: AlbumItem | undefi
       </View>
 
       {latest ? (
-        <View style={styles.cardPhotoBox}>
+        <Pressable style={styles.cardPhotoBox} onPress={() => router.push(`/story/${group.id}`)}>
           <Image source={{ uri: latest.photoUrl }} style={StyleSheet.absoluteFill} contentFit="cover" />
           <View style={[StyleSheet.absoluteFill, styles.cardPhotoOverlay]} />
           <View style={styles.cardPhotoCaption}>
@@ -70,7 +70,7 @@ function GroupCard({ group, latest }: { group: Group; latest: AlbumItem | undefi
               </Text>
             )}
           </View>
-        </View>
+        </Pressable>
       ) : (
         <Pressable
           style={styles.cardWaitingBox}
@@ -97,7 +97,7 @@ export default function HomeScreen() {
   const now = useClock();
   const allGroups = useAppStore((s) => s.groups);
   const groups = useMemo(() => allGroups.filter((g) => g.kind === 'group'), [allGroups]);
-  const album = useAppStore((s) => s.album);
+  const sentPhotos = useAppStore((s) => s.sentPhotos);
   const refreshGroups = useAppStore((s) => s.refreshGroups);
   const refreshFriends = useAppStore((s) => s.refreshFriends);
   const refreshAlbum = useAppStore((s) => s.refreshAlbum);
@@ -127,14 +127,14 @@ export default function HomeScreen() {
   );
 
   const latestByGroup = useMemo(() => {
-    const map = new Map<string, AlbumItem>();
+    const map = new Map<string, SentPhotoItem>();
     const nowMs = Date.now();
-    for (const item of album) {
-      if (item.direction !== 'sent' || !item.groupId || item.expiresAt <= nowMs) continue;
+    for (const item of sentPhotos) {
+      if (!item.groupId || item.expiresAt <= nowMs) continue;
       if (!map.has(item.groupId)) map.set(item.groupId, item);
     }
     return map;
-  }, [album]);
+  }, [sentPhotos]);
 
   const hh = now.getHours().toString().padStart(2, '0');
   const mm = now.getMinutes().toString().padStart(2, '0');

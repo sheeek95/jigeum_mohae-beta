@@ -15,6 +15,7 @@ const TYPE_ICON: Record<NotificationType, keyof typeof Ionicons.glyphMap> = {
   poke: 'hand-left-outline',
   'photo-received': 'image-outline',
   'photo-reaction': 'chatbubble-ellipses-outline',
+  'photo-reply': 'arrow-undo-outline',
   'save-request': 'download-outline',
 };
 
@@ -23,13 +24,16 @@ function navigateFor(item: AppNotification) {
     case 'poke':
       router.push('/(tabs)/poke');
       return;
+    // A brand-new photo only ever lives in the group's story viewer (not
+    // saved into the album yet) — send the user to Home to tap into it.
     case 'photo-received':
-    case 'photo-reaction':
-    case 'save-request':
-      router.push('/(tabs)/album');
-      return;
     case 'friend-added':
       router.push('/(tabs)');
+      return;
+    case 'photo-reaction':
+    case 'photo-reply':
+    case 'save-request':
+      router.push('/(tabs)/album');
       return;
   }
 }

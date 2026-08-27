@@ -23,32 +23,73 @@ export interface Group {
 
 export type SaveRequestStatus = 'none' | 'pending' | 'approved' | 'rejected';
 
-// One row per (photo, recipient) pair — flattened so both "받은 사진" and
-// "보낸 사진" render as simple cards, and a sender can approve/reject a
-// specific recipient's save request inline (targetUserId + photoId).
-export interface AlbumItem {
-  id: string; // deliveryId
-  direction: 'received' | 'sent';
-  photoId: string;
-  peerName: string;
-  caption: string;
-  photoUrl: string;
-  sentAt: number;
-  expiresAt: number;
-  saveStatus: SaveRequestStatus;
-  targetUserId?: string; // sent items only — who to approve/reject for
-  groupId?: string | null; // sent items only — which of my groups this went to
-  myReaction?: string | null; // received items only — my own reaction text, if left
-  reactions?: PhotoReaction[]; // sent items only — every recipient's reaction
-}
-
-export interface PhotoReaction {
+export interface CommentPreview {
   userId: string;
   displayName: string;
   text: string;
 }
 
-export type NotificationType = 'friend-added' | 'poke' | 'photo-received' | 'photo-reaction' | 'save-request';
+// Album's "저장한 사진" tab — permanently saved (APPROVED) received photos
+// only. No TTL: an approved save never expires.
+export interface SavedPhotoItem {
+  id: string; // deliveryId
+  photoId: string;
+  peerName: string; // who sent it
+  caption: string;
+  photoUrl: string;
+  sentAt: number;
+  savedAt: number | null;
+}
+
+// Album's "보낸 사진" tab — one row per (photo, recipient) pair, so a sender
+// can approve/reject a specific recipient's save request inline.
+export interface SentPhotoItem {
+  id: string; // deliveryId
+  photoId: string;
+  peerName: string; // recipient's name
+  caption: string;
+  photoUrl: string;
+  sentAt: number;
+  expiresAt: number;
+  saveStatus: SaveRequestStatus;
+  targetUserId: string;
+  groupId: string | null;
+  comments: CommentPreview[];
+}
+
+// A group's still-live (<24h) photo history shown in the story viewer —
+// mixes photos I sent and photos I received in that group/friendship.
+export interface GroupPhoto {
+  photoId: string;
+  photoUrl: string;
+  caption: string;
+  senderId: string;
+  senderName: string;
+  createdAt: number;
+  expiresAt: number;
+  isMine: boolean;
+  saveStatus: SaveRequestStatus | null;
+  comments: CommentPreview[];
+}
+
+// Full comment thread for one photo (see the story viewer's reactions
+// sheet) — replies nest exactly one level under their parent.
+export interface Comment {
+  id: string;
+  userId: string;
+  displayName: string;
+  text: string;
+  createdAt: number;
+  replies: Omit<Comment, 'replies'>[];
+}
+
+export type NotificationType =
+  | 'friend-added'
+  | 'poke'
+  | 'photo-received'
+  | 'photo-reaction'
+  | 'photo-reply'
+  | 'save-request';
 
 export interface AppNotification {
   id: string;

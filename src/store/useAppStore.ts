@@ -13,9 +13,11 @@ import { registerForPushNotificationsAsync } from '../notifications/registerPush
 import { syncAndroidWidget } from '../widgets/syncAndroidWidget';
 import { requestIosWidgetReload, syncIosWidgetCredentials } from '../widgets/syncIosWidget';
 import type {
+  ApiComment,
   ApiDnd,
   ApiFriend,
   ApiGroup,
+  ApiGroupPhoto,
   ApiInvite,
   ApiInvitePreview,
   ApiNotification,
@@ -26,17 +28,20 @@ import type {
   ApiWidgetPhoto,
 } from '../api/types';
 import type {
-  AlbumItem,
   AppNotification,
   AvatarGradient,
   CapturedPhoto,
+  Comment,
   DndSettings,
   Friend,
   Group,
+  GroupPhoto,
   InviteLink,
   Me,
   NotificationType,
+  SavedPhotoItem,
   SaveRequestStatus,
+  SentPhotoItem,
   WidgetPhoto,
 } from './types';
 
@@ -63,7 +68,10 @@ interface AppState {
   inviteLink: InviteLink | null;
   pendingInvite: ApiInvitePreview | null;
   widgetPhoto: WidgetPhoto | null;
-  album: AlbumItem[];
+  savedPhotos: SavedPhotoItem[];
+  sentPhotos: SentPhotoItem[];
+  groupPhotos: Record<string, GroupPhoto[]>;
+  commentThreads: Record<string, Comment[]>;
   capturedPhoto: CapturedPhoto | null;
   pokedIds: string[];
   notifications: AppNotification[];
@@ -84,7 +92,9 @@ interface AppState {
   refreshNotifications: () => Promise<void>;
   refreshUnreadCount: () => Promise<void>;
   markNotificationsRead: () => Promise<void>;
-  submitReaction: (photoId: string, text: string) => Promise<void>;
+  fetchGroupPhotos: (groupId: string) => Promise<GroupPhoto[]>;
+  fetchComments: (photoId: string) => Promise<Comment[]>;
+  submitComment: (photoId: string, text: string, parentId?: string) => Promise<void>;
 
   poke: (userId: string) => Promise<boolean>;
   loadInviteByCode: (code: string) => Promise<void>;
@@ -153,25 +163,21 @@ function mapGroup(g: ApiGroup): Group {
   };
 }
 
-function mapReceived(p: ApiReceivedPhoto): AlbumItem {
+function mapSavedPhoto(p: ApiReceivedPhoto): SavedPhotoItem {
   return {
     id: p.deliveryId,
-    direction: 'received',
     photoId: p.photoId,
     peerName: p.senderName,
     caption: p.caption,
     photoUrl: resolveMediaUrl(p.url),
     sentAt: new Date(p.createdAt).getTime(),
-    expiresAt: new Date(p.expiresAt).getTime(),
-    saveStatus: p.saveStatus.toLowerCase() as SaveRequestStatus,
-    myReaction: p.myReaction,
+    savedAt: p.savedAt ? new Date(p.savedAt).getTime() : null,
   };
 }
 
-function mapSent(p: ApiSentPhoto): AlbumItem[] {
+function mapSentPhoto(p: ApiSentPhoto): SentPhotoItem[] {
   return p.deliveries.map((d) => ({
     id: d.deliveryId,
-    direction: 'sent',
     photoId: p.photoId,
     peerName: d.displayName,
     caption: p.caption,
@@ -181,8 +187,40 @@ function mapSent(p: ApiSentPhoto): AlbumItem[] {
     saveStatus: d.saveStatus.toLowerCase() as SaveRequestStatus,
     targetUserId: d.userId,
     groupId: p.groupId,
-    reactions: p.reactions,
+    comments: p.comments,
   }));
+}
+
+function mapGroupPhoto(p: ApiGroupPhoto): GroupPhoto {
+  return {
+    photoId: p.photoId,
+    photoUrl: resolveMediaUrl(p.url),
+    caption: p.caption,
+    senderId: p.senderId,
+    senderName: p.senderName,
+    createdAt: new Date(p.createdAt).getTime(),
+    expiresAt: new Date(p.expiresAt).getTime(),
+    isMine: p.isMine,
+    saveStatus: p.saveStatus ? (p.saveStatus.toLowerCase() as SaveRequestStatus) : null,
+    comments: p.comments,
+  };
+}
+
+function mapComment(c: ApiComment): Comment {
+  return {
+    id: c.id,
+    userId: c.userId,
+    displayName: c.displayName,
+    text: c.text,
+    createdAt: new Date(c.createdAt).getTime(),
+    replies: c.replies.map((r) => ({
+      id: r.id,
+      userId: r.userId,
+      displayName: r.displayName,
+      text: r.text,
+      createdAt: new Date(r.createdAt).getTime(),
+    })),
+  };
 }
 
 const NOTIFICATION_TYPE_MAP: Record<ApiNotificationType, NotificationType> = {
@@ -190,6 +228,7 @@ const NOTIFICATION_TYPE_MAP: Record<ApiNotificationType, NotificationType> = {
   POKE: 'poke',
   PHOTO_RECEIVED: 'photo-received',
   PHOTO_REACTION: 'photo-reaction',
+  PHOTO_REPLY: 'photo-reply',
   SAVE_REQUEST: 'save-request',
 };
 
@@ -249,7 +288,10 @@ export const useAppStore = create<AppState>()(
       inviteLink: null,
       pendingInvite: null,
       widgetPhoto: null,
-      album: [],
+      savedPhotos: [],
+      sentPhotos: [],
+      groupPhotos: {},
+      commentThreads: {},
       capturedPhoto: null,
       pokedIds: [],
       notifications: [],
@@ -378,8 +420,10 @@ export const useAppStore = create<AppState>()(
           api.get<{ items: ApiSentPhoto[] }>('/photos/sent'),
         ]);
         if (!isCurrentTicket('album', ticket)) return;
-        const merged = [...received.map(mapReceived), ...sent.flatMap(mapSent)].sort((a, b) => b.sentAt - a.sentAt);
-        set({ album: merged });
+        set({
+          savedPhotos: received.map(mapSavedPhoto),
+          sentPhotos: sent.flatMap(mapSentPhoto),
+        });
       },
 
       refreshWidget: async () => {
@@ -434,9 +478,26 @@ export const useAppStore = create<AppState>()(
         }));
       },
 
-      submitReaction: async (photoId, text) => {
-        await api.post(`/photos/${photoId}/reactions`, { text });
-        await get().refreshAlbum();
+      // Fetched fresh on every story-viewer open rather than kept warm in
+      // the background — this is a point-in-time "what's live right now"
+      // view, not something that needs continuous polling like the widget.
+      fetchGroupPhotos: async (groupId) => {
+        const { items } = await api.get<{ items: ApiGroupPhoto[] }>(`/groups/${groupId}/photos`);
+        const mapped = items.map(mapGroupPhoto);
+        set((state) => ({ groupPhotos: { ...state.groupPhotos, [groupId]: mapped } }));
+        return mapped;
+      },
+
+      fetchComments: async (photoId) => {
+        const { comments } = await api.get<{ comments: ApiComment[] }>(`/photos/${photoId}/comments`);
+        const mapped = comments.map(mapComment);
+        set((state) => ({ commentThreads: { ...state.commentThreads, [photoId]: mapped } }));
+        return mapped;
+      },
+
+      submitComment: async (photoId, text, parentId) => {
+        await api.post(`/photos/${photoId}/comments`, { text, parentId });
+        await get().fetchComments(photoId);
       },
 
       poke: async (userId) => {
