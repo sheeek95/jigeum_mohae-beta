@@ -20,34 +20,37 @@ datasource db {
 // A physical group has a hard cap on exposed members (spec: 8-10 per group).
 // Enforced in application code (routes/groups.ts), not the DB layer.
 model User {
-  id           String   @id @default(cuid())
+  id          String   @id @default(cuid())
   // Legacy identity anchor from before Kakao login: still populated
   // opportunistically, but no longer unique-constrained to an active
   // session — kakaoId is the real identity now (see auth.ts).
-  deviceId     String?  @unique
+  deviceId    String?  @unique
   // Kakao account identity — required going forward (login is mandatory),
   // nullable only for pre-Kakao accounts that haven't linked yet.
-  kakaoId      String?  @unique
-  displayName  String
-  avatarStart  String   @default("#FF9AA6")
-  avatarEnd    String   @default("#8A6BC7")
+  kakaoId     String?  @unique
+  displayName String
+  avatarStart String   @default("#FF9AA6")
+  avatarEnd   String   @default("#8A6BC7")
   // Permanent, personal friend-add code — set once at account creation and
   // never rotated or expired (spec change: a per-user fixed code is simpler
   // to share than a link that had to be regenerated after every single use).
-  inviteCode   String   @unique
-  createdAt    DateTime @default(now())
+  inviteCode  String   @unique
+  createdAt   DateTime @default(now())
 
   dndSetting        DndSetting?
-  friendshipsA      Friendship[]      @relation("FriendshipUserA")
-  friendshipsB      Friendship[]      @relation("FriendshipUserB")
-  ownedGroups       Group[]           @relation("GroupOwner")
-  personalGroupOf   Group[]           @relation("GroupFriendTarget")
+  friendshipsA      Friendship[]    @relation("FriendshipUserA")
+  friendshipsB      Friendship[]    @relation("FriendshipUserB")
+  ownedGroups       Group[]         @relation("GroupOwner")
+  personalGroupOf   Group[]         @relation("GroupFriendTarget")
   groupMemberships  GroupMember[]
-  pokesSent         Poke[]            @relation("PokeFrom")
-  pokesReceived     Poke[]            @relation("PokeTo")
-  photosSent        Photo[]           @relation("PhotoSender")
+  pokesSent         Poke[]          @relation("PokeFrom")
+  pokesReceived     Poke[]          @relation("PokeTo")
+  photosSent        Photo[]         @relation("PhotoSender")
   photoDeliveries   PhotoDelivery[]
   pushTokens        PushToken[]
+  notifications     Notification[]  @relation("NotificationRecipient")
+  notificationsFrom Notification[]  @relation("NotificationFrom")
+  photoReactions    PhotoReaction[]
 }
 
 // One row per device registered for push (a user can have several — phone
@@ -105,11 +108,11 @@ model Group {
 }
 
 model GroupMember {
-  id      String  @id @default(cuid())
+  id      String @id @default(cuid())
   groupId String
-  group   Group   @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  group   Group  @relation(fields: [groupId], references: [id], onDelete: Cascade)
   userId  String
-  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user    User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([groupId, userId])
 }
@@ -138,17 +141,18 @@ enum SaveStatus {
 // across everyone who received it, while each recipient can independently
 // request a save.
 model Photo {
-  id          String          @id @default(cuid())
-  senderId    String
-  sender      User            @relation("PhotoSender", fields: [senderId], references: [id], onDelete: Cascade)
-  groupId     String?
-  group       Group?          @relation(fields: [groupId], references: [id])
-  storageKey  String
-  caption     String          @default("")
-  createdAt   DateTime        @default(now())
-  expiresAt   DateTime
-  deletedAt   DateTime?
-  deliveries  PhotoDelivery[]
+  id         String          @id @default(cuid())
+  senderId   String
+  sender     User            @relation("PhotoSender", fields: [senderId], references: [id], onDelete: Cascade)
+  groupId    String?
+  group      Group?          @relation(fields: [groupId], references: [id])
+  storageKey String
+  caption    String          @default("")
+  createdAt  DateTime        @default(now())
+  expiresAt  DateTime
+  deletedAt  DateTime?
+  deliveries PhotoDelivery[]
+  reactions  PhotoReaction[]
 }
 
 // Per-recipient view + save-request state (spec #22: requester asks, sender
@@ -167,4 +171,47 @@ model PhotoDelivery {
   expiredAt  DateTime?
 
   @@unique([photoId, userId])
+}
+
+// One short text reaction per recipient per photo (the sender's own copy
+// never gets one — there's nothing to react to your own send). Shown to
+// the sender alongside the photo; triggers a PHOTO_REACTION notification.
+model PhotoReaction {
+  id        String   @id @default(cuid())
+  photoId   String
+  photo     Photo    @relation(fields: [photoId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  text      String
+  createdAt DateTime @default(now())
+
+  @@unique([photoId, userId])
+}
+
+enum NotificationType {
+  FRIEND_ADDED
+  POKE
+  PHOTO_RECEIVED
+  PHOTO_REACTION
+  SAVE_REQUEST
+}
+
+// Persisted, in-app notification history — separate from (and paired
+// with) the OS push each of these also fires, so the in-app 알림함 screen
+// has something to list even for pushes the user dismissed or missed.
+model Notification {
+  id         String           @id @default(cuid())
+  userId     String
+  user       User             @relation("NotificationRecipient", fields: [userId], references: [id], onDelete: Cascade)
+  type       NotificationType
+  title      String
+  body       String
+  // Optional context for deep-linking / rendering — not every type uses both.
+  photoId    String?
+  fromUserId String?
+  fromUser   User?            @relation("NotificationFrom", fields: [fromUserId], references: [id], onDelete: SetNull)
+  read       Boolean          @default(false)
+  createdAt  DateTime         @default(now())
+
+  @@index([userId, createdAt])
 }

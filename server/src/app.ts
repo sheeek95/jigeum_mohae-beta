@@ -11,6 +11,7 @@ import { authRouter } from './routes/auth.js';
 import { friendsRouter } from './routes/friends.js';
 import { groupsRouter } from './routes/groups.js';
 import { invitesRouter } from './routes/invites.js';
+import { notificationsRouter } from './routes/notifications.js';
 import { photosRouter, UPLOAD_DIR } from './routes/photos.js';
 import { pokesRouter } from './routes/pokes.js';
 import { pushRouter } from './routes/push.js';
@@ -77,6 +78,7 @@ app.use('/pokes', pokesRouter);
 app.use('/photos', photosRouter);
 app.use('/settings', settingsRouter);
 app.use('/push', pushRouter);
+app.use('/notifications', notificationsRouter);
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {

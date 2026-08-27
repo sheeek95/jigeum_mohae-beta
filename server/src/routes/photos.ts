@@ -8,8 +8,8 @@ import sharp from 'sharp';
 import { z } from 'zod';
 
 import { badRequest, forbidden, notFound } from '../lib/errors.js';
+import { notify } from '../lib/notify.js';
 import { prisma } from '../lib/prisma.js';
-import { sendPushToUser } from '../lib/push.js';
 import { requireAuth } from '../middleware/auth.js';
 
 export const UPLOAD_DIR = path.resolve(process.cwd(), 'uploads');
@@ -59,10 +59,13 @@ photosRouter.post('/', upload.single('photo'), async (req, res) => {
   if (!req.file) throw badRequest('사진 파일이 필요해요');
   const { caption, targetGroupIds } = shareSchema.parse(req.body);
 
-  const groups = await prisma.group.findMany({
-    where: { id: { in: targetGroupIds }, ownerId: req.userId },
-    include: { members: true },
-  });
+  const [groups, sender] = await Promise.all([
+    prisma.group.findMany({
+      where: { id: { in: targetGroupIds }, ownerId: req.userId },
+      include: { members: true },
+    }),
+    prisma.user.findUniqueOrThrow({ where: { id: req.userId } }),
+  ]);
   if (groups.length === 0) throw badRequest('보낼 대상을 찾을 수 없어요');
 
   const filename = await saveCompressedPhoto(req.file.buffer);
@@ -87,6 +90,17 @@ photosRouter.post('/', upload.single('photo'), async (req, res) => {
       })
     )
   );
+
+  for (const photo of photos) {
+    for (const delivery of photo.deliveries) {
+      void notify(delivery.userId, 'PHOTO_RECEIVED', {
+        title: '사진이 도착했어요',
+        body: `${sender.displayName}님이 사진을 보냈어요`,
+        photoId: photo.id,
+        fromUserId: req.userId,
+      });
+    }
+  }
 
   res.status(201).json({ photos, url: `/uploads/${filename}` });
 });
@@ -118,7 +132,7 @@ photosRouter.get('/widget/latest', async (req, res) => {
 photosRouter.get('/received', async (req, res) => {
   const deliveries = await prisma.photoDelivery.findMany({
     where: { userId: req.userId, expiredAt: null },
-    include: { photo: { include: { sender: true } } },
+    include: { photo: { include: { sender: true, reactions: { where: { userId: req.userId } } } } },
     orderBy: { photo: { createdAt: 'desc' } },
   });
   res.json({
@@ -131,6 +145,7 @@ photosRouter.get('/received', async (req, res) => {
       createdAt: d.photo.createdAt,
       expiresAt: d.photo.expiresAt,
       saveStatus: d.saveStatus,
+      myReaction: d.photo.reactions[0]?.text ?? null,
     })),
   });
 });
@@ -138,7 +153,7 @@ photosRouter.get('/received', async (req, res) => {
 photosRouter.get('/sent', async (req, res) => {
   const photos = await prisma.photo.findMany({
     where: { senderId: req.userId },
-    include: { deliveries: { include: { user: true } }, group: true },
+    include: { deliveries: { include: { user: true } }, group: true, reactions: { include: { user: true } } },
     orderBy: { createdAt: 'desc' },
   });
   res.json({
@@ -156,6 +171,7 @@ photosRouter.get('/sent', async (req, res) => {
         displayName: d.user.displayName,
         saveStatus: d.saveStatus,
       })),
+      reactions: p.reactions.map((r) => ({ userId: r.userId, displayName: r.user.displayName, text: r.text })),
     })),
   });
 });
@@ -174,13 +190,47 @@ photosRouter.post('/:photoId/request-save', async (req, res) => {
   const requester = await prisma.user.findUniqueOrThrow({ where: { id: req.userId } });
   const updated = await prisma.photoDelivery.update({ where: { id: delivery.id }, data: { saveStatus: 'PENDING' } });
 
-  sendPushToUser(delivery.photo.senderId, {
+  void notify(delivery.photo.senderId, 'SAVE_REQUEST', {
     title: '사진 저장 요청',
     body: `${requester.displayName}님이 사진 저장을 요청했어요`,
-    data: { type: 'save-request', photoId: delivery.photoId, targetUserId: req.userId },
+    photoId: delivery.photoId,
+    fromUserId: req.userId,
   });
 
   res.json({ delivery: updated });
+});
+
+const reactionSchema = z.object({ text: z.string().min(1).max(50) });
+
+// One short text reaction per recipient per photo — re-submitting replaces
+// the previous text rather than erroring, so recipients can freely change
+// their mind. Only a delivery's own recipient may react (the unique
+// PhotoDelivery lookup below also doubles as the "am I a recipient" check).
+photosRouter.post('/:photoId/reactions', async (req, res) => {
+  const { text } = reactionSchema.parse(req.body);
+  const delivery = await prisma.photoDelivery.findUnique({
+    where: { photoId_userId: { photoId: req.params.photoId, userId: req.userId } },
+    include: { photo: true },
+  });
+  if (!delivery) throw notFound('받은 사진');
+
+  const [reactor, reaction] = await Promise.all([
+    prisma.user.findUniqueOrThrow({ where: { id: req.userId } }),
+    prisma.photoReaction.upsert({
+      where: { photoId_userId: { photoId: req.params.photoId, userId: req.userId } },
+      update: { text },
+      create: { photoId: req.params.photoId, userId: req.userId, text },
+    }),
+  ]);
+
+  void notify(delivery.photo.senderId, 'PHOTO_REACTION', {
+    title: '내 사진에 반응이 달렸어요',
+    body: `${reactor.displayName}: ${text}`,
+    photoId: delivery.photoId,
+    fromUserId: req.userId,
+  });
+
+  res.status(201).json({ reaction });
 });
 
 const resolveSchema = z.object({ approve: z.boolean() });

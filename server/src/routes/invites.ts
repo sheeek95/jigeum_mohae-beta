@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 
 import { badRequest, notFound } from '../lib/errors.js';
+import { notify } from '../lib/notify.js';
 import { prisma } from '../lib/prisma.js';
 import { requireAuth } from '../middleware/auth.js';
 
@@ -57,10 +58,13 @@ invitesRouter.post('/:code/accept', async (req, res) => {
 
   const [userAId, userBId] = [inviter.id, req.userId].sort();
 
+  let accepterName = '';
+
   const friendship = await prisma.$transaction(async (tx) => {
     const created = await tx.friendship.create({ data: { userAId, userBId } });
 
     const accepter = await tx.user.findUniqueOrThrow({ where: { id: req.userId } });
+    accepterName = accepter.displayName;
 
     // Auto-create the personal share-target on both sides.
     await tx.group.create({
@@ -85,6 +89,12 @@ invitesRouter.post('/:code/accept', async (req, res) => {
     }
 
     return created;
+  });
+
+  void notify(inviter.id, 'FRIEND_ADDED', {
+    title: '새 친구가 생겼어요',
+    body: `${accepterName}님과 친구가 되었어요`,
+    fromUserId: req.userId,
   });
 
   res.status(201).json({ friendship });

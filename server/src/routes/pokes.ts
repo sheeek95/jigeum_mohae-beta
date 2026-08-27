@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 
 import { notFound } from '../lib/errors.js';
+import { notify } from '../lib/notify.js';
 import { prisma } from '../lib/prisma.js';
 import { requireAuth } from '../middleware/auth.js';
 
@@ -24,8 +25,17 @@ pokesRouter.post('/', async (req, res) => {
   if (!isFriend) throw notFound('친구');
 
   const dndSetting = await prisma.dndSetting.findUnique({ where: { userId: toUserId } });
-  const poke = await prisma.poke.create({
-    data: { fromUserId: req.userId, toUserId, delayedByDnd: dndSetting?.enabled ?? false },
+  const [poke, fromUser] = await Promise.all([
+    prisma.poke.create({
+      data: { fromUserId: req.userId, toUserId, delayedByDnd: dndSetting?.enabled ?? false },
+    }),
+    prisma.user.findUniqueOrThrow({ where: { id: req.userId } }),
+  ]);
+
+  void notify(toUserId, 'POKE', {
+    title: '콕 찔렸어요',
+    body: `${fromUser.displayName}님이 콕 찔렀어요`,
+    fromUserId: req.userId,
   });
 
   res.status(201).json({ poke, anyDelayed: poke.delayedByDnd });
