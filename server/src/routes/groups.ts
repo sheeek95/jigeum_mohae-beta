@@ -44,7 +44,10 @@ groupsRouter.get('/', async (req, res) => {
           : undefined;
       return {
         id: g.id,
-        name: g.name,
+        // PERSONAL groups snapshot the friend's displayName once at creation
+        // (see /invites/:code/accept) — resolve the live name instead so a
+        // later rename by the friend shows up here too.
+        name: g.kind === 'PERSONAL' ? (g.friendUser?.displayName ?? g.name) : g.name,
         kind: g.kind,
         isOwner,
         memberCount: g.kind === 'GROUP' ? (others?.length ?? 0) : 1,

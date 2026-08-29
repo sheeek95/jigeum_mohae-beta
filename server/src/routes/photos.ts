@@ -162,7 +162,7 @@ photosRouter.get('/received', async (req, res) => {
 photosRouter.get('/sent', async (req, res) => {
   const photos = await prisma.photo.findMany({
     where: { senderId: req.userId },
-    include: { deliveries: { include: { user: true } }, group: true },
+    include: { deliveries: { include: { user: true } }, group: { include: { friendUser: true } } },
     orderBy: { createdAt: 'desc' },
   });
   const items = await Promise.all(
@@ -171,7 +171,9 @@ photosRouter.get('/sent', async (req, res) => {
       url: `/uploads/${p.storageKey}`,
       caption: p.caption,
       groupId: p.groupId,
-      targetName: p.group?.name ?? '알 수 없음',
+      // PERSONAL groups snapshot the friend's displayName once at creation —
+      // resolve the live name instead (see groups.ts GET / for the same fix).
+      targetName: (p.group?.kind === 'PERSONAL' ? p.group.friendUser?.displayName : p.group?.name) ?? '알 수 없음',
       createdAt: p.createdAt,
       expiresAt: p.expiresAt,
       deliveries: p.deliveries.map((d) => ({
