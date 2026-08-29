@@ -39,7 +39,7 @@ function GroupCard({ group, latest }: { group: Group; latest: SentPhotoItem | un
         <View style={styles.cardTitleRow}>
           <View style={styles.badgeDot} />
           <Text style={styles.cardTitle}>{group.name}</Text>
-          <Text style={styles.cardMemberCount}>· {group.memberCount}명</Text>
+          {group.kind === 'group' && <Text style={styles.cardMemberCount}>· {group.memberCount}명</Text>}
         </View>
         <View style={styles.avatarRow}>
           {shown.map((m, i) => {
@@ -95,8 +95,11 @@ function GroupCard({ group, latest }: { group: Group; latest: SentPhotoItem | un
 export default function HomeScreen() {
   useScreenCaptureBlock();
   const now = useClock();
-  const allGroups = useAppStore((s) => s.groups);
-  const groups = useMemo(() => allGroups.filter((g) => g.kind === 'group'), [allGroups]);
+  // Both multi-person GROUPs and 1:1 PERSONAL friend targets get their own
+  // card here — a freshly added friend (which only creates a PERSONAL group,
+  // never a GROUP one) needs to show up immediately, not just once the user
+  // separately creates a named group.
+  const groups = useAppStore((s) => s.groups);
   const sentPhotos = useAppStore((s) => s.sentPhotos);
   const refreshGroups = useAppStore((s) => s.refreshGroups);
   const refreshFriends = useAppStore((s) => s.refreshFriends);
