@@ -17,11 +17,17 @@
       "channel": "preview",
       "android": {
         "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://jigeum-mohae-api.onrender.com"
       }
     },
     "production": {
       "autoIncrement": true,
-      "channel": "production"
+      "channel": "production",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://jigeum-mohae-api.onrender.com"
+      }
     }
   },
   "submit": {
