@@ -19,14 +19,16 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://jigeum-mohae-api.onrender.com"
+        "EXPO_PUBLIC_API_URL": "https://jigeum-mohae-api.onrender.com",
+        "EXPO_PUBLIC_USE_RN_FETCH": "1"
       }
     },
     "production": {
       "autoIncrement": true,
       "channel": "production",
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://jigeum-mohae-api.onrender.com"
+        "EXPO_PUBLIC_API_URL": "https://jigeum-mohae-api.onrender.com",
+        "EXPO_PUBLIC_USE_RN_FETCH": "1"
       }
     }
   },
