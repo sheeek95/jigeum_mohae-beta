@@ -24,7 +24,10 @@ function useClock() {
 }
 
 const WEEKDAYS = ['일요일', '월요일', '화요일', '수요일', '목요일', '금요일', '토요일'];
-const POLL_MS = 6000;
+// Was 6000 — that kept the DB continuously busy (Neon suspends after 5 min
+// idle) and blew through the free tier's monthly compute allowance well
+// before the month was over. 30s still feels responsive on a beta app.
+const POLL_MS = 30_000;
 const AVATAR_PEEK = 3;
 
 function GroupCard({ group, latest }: { group: Group; latest: SentPhotoItem | undefined }) {
