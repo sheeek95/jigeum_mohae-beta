@@ -32,8 +32,15 @@ export async function expirePhotosOnce() {
 }
 
 export function startExpiryJob() {
-  // Every 5 minutes is plenty granular for a 24h TTL and keeps this cheap.
-  cron.schedule('*/5 * * * *', () => {
+  // Was every 5 minutes — that's exactly Neon's scale-to-zero idle window,
+  // so the DB was being woken right as it was about to suspend, 24/7,
+  // regardless of whether anyone was using the app. This alone likely did
+  // more to burn the free tier's monthly compute-hour allowance than any
+  // amount of in-app polling. A 24h TTL doesn't need finer than hourly
+  // granularity — a photo lingering up to ~1h past its exact expiry is a
+  // non-issue — and hourly leaves the DB a real ~55min idle window each run
+  // to actually suspend.
+  cron.schedule('7 * * * *', () => {
     expirePhotosOnce().catch((err) => console.error('[expiryJob] failed:', err));
   });
 }
