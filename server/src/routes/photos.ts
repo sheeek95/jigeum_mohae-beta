@@ -29,13 +29,26 @@ const upload = multer({
   fileFilter: (_req, file, cb) => cb(null, file.mimetype.startsWith('image/')),
 });
 
+// Logs byte counts and surfaces sharp failures loudly — "received a 0-byte
+// or unreadable upload" and "sharp successfully produced a black/garbage
+// JPEG" look identical from the client (both are a photo that won't render
+// anywhere), so there was previously no way to tell which one happened
+// short of inspecting the file on disk directly.
 async function saveCompressedPhoto(buffer: Buffer): Promise<string> {
   const filename = `${crypto.randomUUID()}.jpg`;
-  const compressed = await sharp(buffer)
-    .rotate() // apply EXIF orientation before stripping metadata below
-    .resize({ width: MAX_DIMENSION, height: MAX_DIMENSION, fit: 'inside', withoutEnlargement: true })
-    .jpeg({ quality: JPEG_QUALITY, mozjpeg: true })
-    .toBuffer();
+  console.log(`[photos] compressing upload: ${buffer.length} bytes received`);
+  let compressed: Buffer;
+  try {
+    compressed = await sharp(buffer)
+      .rotate() // apply EXIF orientation before stripping metadata below
+      .resize({ width: MAX_DIMENSION, height: MAX_DIMENSION, fit: 'inside', withoutEnlargement: true })
+      .jpeg({ quality: JPEG_QUALITY, mozjpeg: true })
+      .toBuffer();
+  } catch (err) {
+    console.error(`[photos] sharp failed to process ${buffer.length}-byte upload:`, err);
+    throw err;
+  }
+  console.log(`[photos] compressed to ${compressed.length} bytes -> ${filename}`);
   await fs.writeFile(path.join(UPLOAD_DIR, filename), compressed);
   return filename;
 }
@@ -58,6 +71,7 @@ const shareSchema = z.object({
 
 photosRouter.post('/', upload.single('photo'), async (req, res) => {
   if (!req.file) throw badRequest('사진 파일이 필요해요');
+  console.log(`[photos] upload received: mimetype=${req.file.mimetype} originalname=${req.file.originalname} size=${req.file.size}`);
   const { caption, targetGroupIds } = shareSchema.parse(req.body);
 
   const groups = await prisma.group.findMany({
