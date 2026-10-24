@@ -45,6 +45,16 @@ jobs:
         # straight into the run: string — a message containing a literal " or `
         # (both appear in normal commit messages here) would otherwise break out
         # of the shell quoting and get re-parsed as extra eas-cli arguments.
+        #
+        # `eas update` does NOT read eas.json's build.*.env (that's build-only),
+        # so without these set here explicitly, every OTA publish re-bundles JS
+        # with EXPO_PUBLIC_USE_RN_FETCH unset — silently reverting to SDK 57's
+        # own fetch/FormData and reintroducing the "Unsupported FormDataPart
+        # implementation" photo-upload crash on the very next app/** push, even
+        # though eas-build.yml's builds have had the fix since Aug 29. Keep
+        # this in sync with eas.json's build.preview/production.env.
         env:
           COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+          EXPO_PUBLIC_API_URL: https://jigeum-mohae-api.onrender.com
+          EXPO_PUBLIC_USE_RN_FETCH: '1'
         run: eas update --channel preview --message "$COMMIT_MESSAGE" --non-interactive
