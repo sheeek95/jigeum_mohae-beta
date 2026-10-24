@@ -66,6 +66,17 @@ app.get('/i/:code', (req, res) => {
 </html>`);
 });
 
+// Lets Home show an "앱 업데이트" banner on binaries missing a native
+// module a feature now depends on (OTA can't add native code to an
+// already-installed APK — see src/lib/appVersion.ts). Bump this alongside
+// app.json's top-level "version" (which a new EAS Build bakes into the
+// binary) whenever that happens — but only deploy this bump once the new
+// build is actually available to install, never before, or users on a
+// perfectly fine build get told to "update" into a build that doesn't
+// exist yet.
+const MIN_APP_VERSION = process.env.MIN_APP_VERSION ?? '1.0.0';
+app.get('/app-version', (_req, res) => res.json({ minVersion: MIN_APP_VERSION }));
+
 app.use('/auth', authRouter);
 app.use('/invites', invitesRouter);
 app.use('/friends', friendsRouter);

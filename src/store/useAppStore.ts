@@ -9,6 +9,7 @@ import { api, ApiError, friendlyErrorMessage, resolveMediaUrl, setAuthToken } fr
 import { getOrCreateDeviceId } from '../api/identity';
 import { clearStoredSessionToken, getStoredSessionToken, setStoredSessionToken } from '../api/session';
 import { getApiUrl, loadStoredApiUrl, setApiUrl } from '../api/urlConfig';
+import { getInstalledAppVersion, isVersionAtLeast } from '../lib/appVersion';
 import { registerForPushNotificationsAsync } from '../notifications/registerPush';
 import { syncAndroidWidget } from '../widgets/syncAndroidWidget';
 import { requestIosWidgetReload, syncIosWidgetCredentials, syncIosWidgetGroups } from '../widgets/syncIosWidget';
@@ -85,6 +86,7 @@ interface AppState {
   unreadNotificationCount: number;
   groupInvites: GroupInvite[];
   groupPendingInvites: Record<string, PendingGroupInvite[]>;
+  needsAppUpdate: boolean;
 
   apiUrl: string;
   completeOnboarding: () => void;
@@ -99,6 +101,7 @@ interface AppState {
   refreshHomeLatestPhotos: () => Promise<void>;
   refreshWidget: () => Promise<void>;
   refreshInvite: () => Promise<void>;
+  checkAppUpdate: () => Promise<void>;
   refreshNotifications: () => Promise<void>;
   refreshUnreadCount: () => Promise<void>;
   markNotificationsRead: () => Promise<void>;
@@ -345,6 +348,7 @@ export const useAppStore = create<AppState>()(
       unreadNotificationCount: 0,
       groupInvites: [],
       groupPendingInvites: {},
+      needsAppUpdate: false,
       apiUrl: getApiUrl(),
 
       completeOnboarding: () => set({ hasOnboarded: true }),
@@ -513,6 +517,19 @@ export const useAppStore = create<AppState>()(
         const { invite } = await api.get<{ invite: ApiInvite }>('/invites/mine');
         if (!isCurrentTicket('invite', ticket)) return;
         set({ inviteLink: { code: invite.code } });
+      },
+
+      // Best-effort: a missing/unavailable installed version (old binary
+      // that doesn't even have expo-application's native module yet — see
+      // src/lib/appVersion.ts) is treated as "definitely needs an update".
+      checkAppUpdate: async () => {
+        try {
+          const { minVersion } = await api.get<{ minVersion: string }>('/app-version');
+          const installed = getInstalledAppVersion();
+          set({ needsAppUpdate: !installed || !isVersionAtLeast(installed, minVersion) });
+        } catch {
+          // no connectivity or server hiccup — leave whatever we last knew
+        }
       },
 
       refreshNotifications: async () => {

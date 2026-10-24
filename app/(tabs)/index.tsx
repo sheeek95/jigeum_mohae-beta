@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Avatar } from '../../src/components/Avatar';
@@ -114,6 +114,11 @@ export default function HomeScreen() {
   const refreshUnreadCount = useAppStore((s) => s.refreshUnreadCount);
   const unreadNotificationCount = useAppStore((s) => s.unreadNotificationCount);
   const authStatus = useAppStore((s) => s.authStatus);
+  const needsAppUpdate = useAppStore((s) => s.needsAppUpdate);
+  const checkAppUpdate = useAppStore((s) => s.checkAppUpdate);
+  const inviteLink = useAppStore((s) => s.inviteLink);
+  const refreshInvite = useAppStore((s) => s.refreshInvite);
+  const apiUrl = useAppStore((s) => s.apiUrl);
 
   // Keeps the home-screen native widget's own data fresh in the background —
   // it shows a single cross-group "latest photo" and is a separate surface
@@ -127,6 +132,7 @@ export default function HomeScreen() {
       refreshHomeLatestPhotos();
       refreshWidget();
       refreshUnreadCount();
+      checkAppUpdate(); // app version doesn't change mid-session — no need in the poll below
       const id = setInterval(() => {
         refreshAlbum();
         refreshHomeLatestPhotos();
@@ -134,8 +140,30 @@ export default function HomeScreen() {
         refreshUnreadCount();
       }, POLL_MS);
       return () => clearInterval(id);
-    }, [authStatus, refreshGroups, refreshFriends, refreshAlbum, refreshHomeLatestPhotos, refreshWidget, refreshUnreadCount])
+    }, [
+      authStatus,
+      refreshGroups,
+      refreshFriends,
+      refreshAlbum,
+      refreshHomeLatestPhotos,
+      refreshWidget,
+      refreshUnreadCount,
+      checkAppUpdate,
+    ])
   );
+
+  // The update banner's link reuses the same install link already shown on
+  // the invite screen (src/lib/appVersion.ts's /app-version check doesn't
+  // itself know a download URL) — only fetched lazily here since most users
+  // never need it.
+  useEffect(() => {
+    if (needsAppUpdate && !inviteLink && authStatus === 'ready') refreshInvite().catch(() => {});
+  }, [needsAppUpdate, inviteLink, authStatus, refreshInvite]);
+
+  function handleUpdatePress() {
+    if (!inviteLink) return;
+    Linking.openURL(`${apiUrl}/i/${inviteLink.code}`).catch(() => {});
+  }
 
   const hh = now.getHours().toString().padStart(2, '0');
   const mm = now.getMinutes().toString().padStart(2, '0');
@@ -160,6 +188,14 @@ export default function HomeScreen() {
             </Pressable>
           </View>
         </View>
+
+        {needsAppUpdate && (
+          <Pressable style={styles.updateBanner} onPress={handleUpdatePress} disabled={!inviteLink}>
+            <Ionicons name="arrow-up-circle-outline" size={16} color={colors.yellowText} />
+            <Text style={styles.updateBannerText}>새 버전이 나왔어요! 눌러서 업데이트하세요</Text>
+            <Ionicons name="chevron-forward" size={14} color={colors.yellowText} />
+          </Pressable>
+        )}
 
         <View style={styles.timeHero}>
           <Text style={styles.time}>{hh}:{mm}</Text>
@@ -205,6 +241,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   navBadgeText: { fontSize: 8.5, fontFamily: 'SCDream-ExtraBold', color: '#fff' },
+  updateBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginHorizontal: 18,
+    marginTop: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: radius.lg,
+    backgroundColor: 'rgba(255,214,102,0.14)',
+  },
+  updateBannerText: { flex: 1, fontSize: 12, fontFamily: 'SCDream-Bold', color: colors.yellowText },
   timeHero: { alignItems: 'center', marginTop: 10, marginBottom: 14 },
   time: { fontSize: 40, fontFamily: 'SCDream-Bold', color: colors.textHi, letterSpacing: -1 },
   date: { fontSize: 12.5, color: colors.textMid, marginTop: 2 },
