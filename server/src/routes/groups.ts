@@ -116,18 +116,15 @@ groupsRouter.post('/:id/members', async (req, res) => {
   const memberCount = await prisma.groupMember.count({ where: { groupId: group.id } });
   if (memberCount >= MAX_GROUP_MEMBERS) throw badRequest(`그룹은 최대 ${MAX_GROUP_MEMBERS}명까지예요`);
 
-  const [owner, invite] = await Promise.all([
-    prisma.user.findUniqueOrThrow({ where: { id: req.userId } }),
-    prisma.groupInvite.upsert({
-      where: { groupId_inviteeId: { groupId: group.id, inviteeId: userId } },
-      update: {},
-      create: { groupId: group.id, inviterId: req.userId, inviteeId: userId },
-    }),
-  ]);
+  const invite = await prisma.groupInvite.upsert({
+    where: { groupId_inviteeId: { groupId: group.id, inviteeId: userId } },
+    update: {},
+    create: { groupId: group.id, inviterId: req.userId, inviteeId: userId },
+  });
 
   void notify(userId, 'GROUP_INVITE', {
     title: '그룹 초대가 왔어요',
-    body: `${owner.displayName}님이 "${group.name}" 그룹에 초대했어요`,
+    body: `{{from}}님이 "${group.name}" 그룹에 초대했어요`,
     groupId: group.id,
     fromUserId: req.userId,
   });
@@ -177,10 +174,7 @@ groupsRouter.post('/invites/:id/respond', async (req, res) => {
     throw badRequest('그룹 정원이 가득 찼어요');
   }
 
-  const [invitee, existingMembers] = await Promise.all([
-    prisma.user.findUniqueOrThrow({ where: { id: req.userId } }),
-    prisma.groupMember.findMany({ where: { groupId: invite.groupId } }),
-  ]);
+  const existingMembers = await prisma.groupMember.findMany({ where: { groupId: invite.groupId } });
 
   await prisma.$transaction([
     prisma.groupMember.create({ data: { groupId: invite.groupId, userId: req.userId } }),
@@ -192,7 +186,7 @@ groupsRouter.post('/invites/:id/respond', async (req, res) => {
   for (const uid of notifyTargets) {
     void notify(uid, 'GROUP_MEMBER_JOINED', {
       title: '새 멤버가 들어왔어요',
-      body: `${invitee.displayName}님이 "${invite.group.name}" 그룹에 들어왔어요`,
+      body: `{{from}}님이 "${invite.group.name}" 그룹에 들어왔어요`,
       groupId: invite.groupId,
       fromUserId: req.userId,
     });

@@ -25,16 +25,13 @@ pokesRouter.post('/', async (req, res) => {
   if (!isFriend) throw notFound('친구');
 
   const dndSetting = await prisma.dndSetting.findUnique({ where: { userId: toUserId } });
-  const [poke, fromUser] = await Promise.all([
-    prisma.poke.create({
-      data: { fromUserId: req.userId, toUserId, delayedByDnd: dndSetting?.enabled ?? false },
-    }),
-    prisma.user.findUniqueOrThrow({ where: { id: req.userId } }),
-  ]);
+  const poke = await prisma.poke.create({
+    data: { fromUserId: req.userId, toUserId, delayedByDnd: dndSetting?.enabled ?? false },
+  });
 
   void notify(toUserId, 'POKE', {
     title: '콕 찔렸어요',
-    body: `${fromUser.displayName}님이 콕 찔렀어요`,
+    body: '{{from}}님이 콕 찔렀어요',
     fromUserId: req.userId,
   });
 

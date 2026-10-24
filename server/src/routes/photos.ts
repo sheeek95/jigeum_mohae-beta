@@ -60,13 +60,10 @@ photosRouter.post('/', upload.single('photo'), async (req, res) => {
   if (!req.file) throw badRequest('사진 파일이 필요해요');
   const { caption, targetGroupIds } = shareSchema.parse(req.body);
 
-  const [groups, sender] = await Promise.all([
-    prisma.group.findMany({
-      where: { id: { in: targetGroupIds }, ownerId: req.userId },
-      include: { members: true },
-    }),
-    prisma.user.findUniqueOrThrow({ where: { id: req.userId } }),
-  ]);
+  const groups = await prisma.group.findMany({
+    where: { id: { in: targetGroupIds }, ownerId: req.userId },
+    include: { members: true },
+  });
   if (groups.length === 0) throw badRequest('보낼 대상을 찾을 수 없어요');
 
   const filename = await saveCompressedPhoto(req.file.buffer);
@@ -96,7 +93,7 @@ photosRouter.post('/', upload.single('photo'), async (req, res) => {
     for (const delivery of photo.deliveries) {
       void notify(delivery.userId, 'PHOTO_RECEIVED', {
         title: '사진이 도착했어요',
-        body: `${sender.displayName}님이 사진을 보냈어요`,
+        body: '{{from}}님이 사진을 보냈어요',
         photoId: photo.id,
         fromUserId: req.userId,
       });
@@ -199,12 +196,11 @@ photosRouter.post('/:photoId/request-save', async (req, res) => {
   const savedCount = await prisma.photoDelivery.count({ where: { userId: req.userId, saveStatus: 'APPROVED' } });
   if (savedCount >= MAX_SAVED_PHOTOS) throw badRequest(`저장된 사진은 최대 ${MAX_SAVED_PHOTOS}장까지예요`);
 
-  const requester = await prisma.user.findUniqueOrThrow({ where: { id: req.userId } });
   const updated = await prisma.photoDelivery.update({ where: { id: delivery.id }, data: { saveStatus: 'PENDING' } });
 
   void notify(delivery.photo.senderId, 'SAVE_REQUEST', {
     title: '사진 저장 요청',
-    body: `${requester.displayName}님이 사진 저장을 요청했어요`,
+    body: '{{from}}님이 사진 저장을 요청했어요',
     photoId: delivery.photoId,
     fromUserId: req.userId,
   });
@@ -259,19 +255,16 @@ photosRouter.post('/:photoId/comments', async (req, res) => {
     if (!parent || parent.photoId !== req.params.photoId) throw notFound('댓글');
   }
 
-  const [author, comment] = await Promise.all([
-    prisma.user.findUniqueOrThrow({ where: { id: req.userId } }),
-    prisma.photoComment.create({
-      data: { photoId: req.params.photoId, userId: req.userId, text, parentId: parent?.id },
-      include: { user: true },
-    }),
-  ]);
+  const comment = await prisma.photoComment.create({
+    data: { photoId: req.params.photoId, userId: req.userId, text, parentId: parent?.id },
+    include: { user: true },
+  });
 
   if (parent) {
     if (parent.userId !== req.userId) {
       void notify(parent.userId, 'PHOTO_REPLY', {
         title: '답글이 달렸어요',
-        body: `${author.displayName}: ${text}`,
+        body: `{{from}}: ${text}`,
         photoId: req.params.photoId,
         fromUserId: req.userId,
       });
@@ -279,7 +272,7 @@ photosRouter.post('/:photoId/comments', async (req, res) => {
   } else if (photo.senderId !== req.userId) {
     void notify(photo.senderId, 'PHOTO_REACTION', {
       title: '내 사진에 반응이 달렸어요',
-      body: `${author.displayName}: ${text}`,
+      body: `{{from}}: ${text}`,
       photoId: req.params.photoId,
       fromUserId: req.userId,
     });
