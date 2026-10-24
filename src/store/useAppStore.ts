@@ -201,6 +201,7 @@ function mapSavedPhoto(p: ApiReceivedPhoto): SavedPhotoItem {
     groupName: p.groupName,
     sentAt: new Date(p.createdAt).getTime(),
     savedAt: p.savedAt ? new Date(p.savedAt).getTime() : null,
+    expiresAt: new Date(p.expiresAt).getTime(),
   };
 }
 

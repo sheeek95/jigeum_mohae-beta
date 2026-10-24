@@ -17,6 +17,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { friendlyErrorMessage } from '../../src/api/client';
+import { saveToDevice } from '../../src/lib/deviceGallery';
 import { useAppStore } from '../../src/store/useAppStore';
 import type { AvatarGradient, Comment, GroupPhoto } from '../../src/store/types';
 import { colors, radius } from '../../src/theme/tokens';
@@ -186,6 +187,13 @@ export default function StoryScreen() {
     }
   }
 
+  async function handleSaveToDevice() {
+    if (!photo) return;
+    const ok = await saveToDevice(photo.photoUrl);
+    if (ok) Alert.alert('저장 완료', '휴대폰 사진첩에 저장했어요.');
+    else Alert.alert('저장하지 못했어요', '사진 보관함 접근 권한을 확인한 뒤 다시 시도해주세요.');
+  }
+
   async function handleCompactSubmit() {
     const text = compactInput.trim();
     if (!text || !photo) return;
@@ -349,8 +357,12 @@ export default function StoryScreen() {
                       <Text style={styles.savePillPendingText}>저장 요청됨</Text>
                     </View>
                   ) : photo.saveStatus === 'approved' ? (
+                    <Pressable style={styles.savePill} onPress={handleSaveToDevice}>
+                      <Text style={styles.savePillText}>기기에 저장</Text>
+                    </Pressable>
+                  ) : photo.saveStatus === 'rejected' ? (
                     <View style={[styles.savePill, styles.savePillPending]}>
-                      <Text style={styles.savePillPendingText}>저장됨 ✓</Text>
+                      <Text style={styles.savePillPendingText}>저장 거절됨</Text>
                     </View>
                   ) : null)}
               </View>

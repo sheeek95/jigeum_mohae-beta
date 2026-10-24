@@ -16,8 +16,12 @@ const PHOTO_TTL_MS = 24 * 60 * 60 * 1000; // spec: 24시간 후 자동 삭제
 // Photos only ever live 24h (or until an explicit save) and are only ever
 // shown at widget/thumbnail/full-screen-preview size — re-encoding on
 // upload keeps disk usage and bandwidth low without a visible quality hit.
+// WebP over JPEG: at the same perceptual quality WebP runs noticeably
+// smaller (better entropy coding), which is exactly "용량은 낮추고 화질은
+// 유지" — no client change needed, Image components and both widget
+// extensions decode WebP natively on modern iOS/Android.
 const MAX_DIMENSION = 1440;
-const JPEG_QUALITY = 72;
+const WEBP_QUALITY = 80;
 
 // Buffered in memory rather than written straight to disk since every
 // upload gets re-encoded through sharp before it's persisted.
@@ -33,30 +37,32 @@ const upload = multer({
 // anywhere), so there was previously no way to tell which one happened
 // short of inspecting the file on disk directly.
 async function saveCompressedPhoto(buffer: Buffer): Promise<string> {
-  const filename = `${crypto.randomUUID()}.jpg`;
+  const filename = `${crypto.randomUUID()}.webp`;
   console.log(`[photos] compressing upload: ${buffer.length} bytes received`);
   let compressed: Buffer;
   try {
     compressed = await sharp(buffer)
       .rotate() // apply EXIF orientation before stripping metadata below
       .resize({ width: MAX_DIMENSION, height: MAX_DIMENSION, fit: 'inside', withoutEnlargement: true })
-      .jpeg({ quality: JPEG_QUALITY, mozjpeg: true })
+      .webp({ quality: WEBP_QUALITY, effort: 6 })
       .toBuffer();
   } catch (err) {
     console.error(`[photos] sharp failed to process ${buffer.length}-byte upload:`, err);
     throw err;
   }
   console.log(`[photos] compressed to ${compressed.length} bytes -> ${filename}`);
-  await uploadToR2(filename, compressed, 'image/jpeg');
+  await uploadToR2(filename, compressed, 'image/webp');
   return filename;
 }
 
 export const photosRouter = Router();
 photosRouter.use(requireAuth);
 
-// Storage cap on permanently-saved (APPROVED) photos, separate from the 24h
-// TTL that everything else self-clears through. Free-tier number for now —
-// spec says this varies per paid plan once billing exists.
+// Cap on how many photos a user can have pending APPROVED at once — still
+// bounded even though an approved save no longer outlives the usual 24h TTL
+// (see expirePhotos.ts), since several could be approved within the same
+// window. Free-tier number for now — spec says this varies per paid plan
+// once billing exists.
 const MAX_SAVED_PHOTOS = 50;
 
 const shareSchema = z.object({
@@ -200,8 +206,10 @@ photosRouter.get('/home', async (req, res) => {
 
 // "저장한 사진" — album's saved tab. Only APPROVED deliveries: an
 // un-saved received photo lives only in the group story viewer (see
-// GET /groups/:id/photos below), not here, so this list never needs a TTL
-// countdown — an APPROVED save is permanent.
+// GET /groups/:id/photos below), not here. An approved save no longer keeps
+// the Photo/R2 file alive past the original 24h TTL (see expirePhotos.ts) —
+// it's expected to be downloaded to the device instead — so this still
+// carries expiresAt for the same countdown UI the sent tab shows.
 photosRouter.get('/received', async (req, res) => {
   const deliveries = await prisma.photoDelivery.findMany({
     where: { userId: req.userId, saveStatus: 'APPROVED' },
@@ -220,6 +228,7 @@ photosRouter.get('/received', async (req, res) => {
       groupName: d.photo.group?.kind === 'GROUP' ? d.photo.group.name : null,
       createdAt: d.photo.createdAt,
       savedAt: d.savedAt,
+      expiresAt: d.photo.expiresAt,
     })),
   });
 });

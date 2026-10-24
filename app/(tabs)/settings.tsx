@@ -141,7 +141,7 @@ export default function SettingsScreen() {
           <SectionLabel style={styles.sectionLabel}>사진 보관</SectionLabel>
           <View style={styles.block}>
             <Text style={styles.infoLine}>
-              받은 사진은 24시간 뒤 자동 삭제돼요. 저장 요청을 보내고 상대가 허용하면 양쪽 앨범에 남길 수 있어요.
+              받은 사진은 24시간 뒤 자동 삭제돼요. 저장 요청을 보내고 상대가 허용하면 24시간 안에 휴대폰에 저장할 수 있어요.
             </Text>
           </View>
 

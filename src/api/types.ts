@@ -79,7 +79,10 @@ export interface ApiWidgetPhoto {
   createdAt: string;
 }
 
-// Album's "저장한 사진" tab — only ever APPROVED saves, so no TTL fields.
+// Album's "저장한 사진" tab — only ever APPROVED saves. Still carries the
+// original photo's expiresAt: an approved save no longer outlives the
+// photo's normal 24h TTL server-side, it just unlocks downloading it to the
+// device before then (see server's expirePhotos.ts).
 export interface ApiReceivedPhoto {
   deliveryId: string;
   photoId: string;
@@ -89,6 +92,7 @@ export interface ApiReceivedPhoto {
   groupName: string | null;
   createdAt: string;
   savedAt: string | null;
+  expiresAt: string;
 }
 
 export interface ApiSentDelivery {

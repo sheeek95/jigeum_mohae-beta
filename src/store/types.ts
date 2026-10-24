@@ -46,8 +46,9 @@ export interface CommentPreview {
   text: string;
 }
 
-// Album's "저장한 사진" tab — permanently saved (APPROVED) received photos
-// only. No TTL: an approved save never expires.
+// Album's "저장한 사진" tab — APPROVED received photos. Still TTL'd — an
+// approved save unlocks downloading the photo to the device, it doesn't
+// keep the server copy around past the photo's normal 24h window.
 export interface SavedPhotoItem {
   id: string; // deliveryId
   photoId: string;
@@ -57,6 +58,7 @@ export interface SavedPhotoItem {
   groupName: string | null; // which GROUP it came from — null for a 1:1 friend
   sentAt: number;
   savedAt: number | null;
+  expiresAt: number;
 }
 
 // Album's "보낸 사진" tab — one row per (photo, recipient) pair, so a sender

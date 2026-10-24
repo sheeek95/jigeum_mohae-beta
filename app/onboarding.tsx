@@ -42,7 +42,7 @@ const SLIDES = [
   {
     eyebrow: 'PRIVACY',
     headline: '사진은 24시간 후\n자동으로 사라져요',
-    sub: '계속 남기고 싶다면 저장을 요청할 수 있어요.\n상대가 동의해야 양쪽 앨범에 저장돼요.',
+    sub: '계속 남기고 싶다면 저장을 요청할 수 있어요.\n상대가 동의하면 24시간 안에 휴대폰에 저장할 수 있어요.',
     illustration: 'clock' as const,
   },
 ];

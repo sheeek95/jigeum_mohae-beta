@@ -5,27 +5,21 @@ import { deletePhotoFile } from '../routes/photos.js';
 
 // Spec: "전송된 사진은 수신 24시간 후 자동 삭제 (배치 삭제 or TTL 기반)".
 // Runs as a batch sweep rather than one timer per photo — simpler and cheap
-// at MVP scale. A delivery whose recipient never got an APPROVED save request
-// is hidden (expiredAt set); once every delivery for a Photo is resolved that
-// way (nobody saved it), the Photo row and its file are deleted outright.
+// at MVP scale. An APPROVED save used to keep the Photo (and its R2 file)
+// alive forever, backing the "저장한 사진" tab as a permanent cloud copy —
+// now that an approved save instead prompts both sides to download the
+// photo to their own device gallery (src/lib/deviceGallery.ts), there's no
+// reason to keep paying R2 storage for it past the same 24h every other
+// photo gets: everything here is deleted unconditionally once due,
+// APPROVED or not. Whoever didn't tap "기기에 저장" in time loses it, same
+// as anyone who never saw the photo at all within the 24h window.
 export async function expirePhotosOnce() {
   const now = new Date();
-  const duePhotos = await prisma.photo.findMany({
-    where: { expiresAt: { lte: now } },
-    include: { deliveries: true },
-  });
+  const duePhotos = await prisma.photo.findMany({ where: { expiresAt: { lte: now } } });
 
   for (const photo of duePhotos) {
-    await prisma.photoDelivery.updateMany({
-      where: { photoId: photo.id, expiredAt: null, saveStatus: { not: 'APPROVED' } },
-      data: { expiredAt: now },
-    });
-
-    const hasApprovedCopy = photo.deliveries.some((d) => d.saveStatus === 'APPROVED');
-    if (!hasApprovedCopy) {
-      await prisma.photo.delete({ where: { id: photo.id } }); // cascades to deliveries
-      await deletePhotoFile(photo.storageKey);
-    }
+    await prisma.photo.delete({ where: { id: photo.id } }); // cascades to deliveries
+    await deletePhotoFile(photo.storageKey);
   }
 
   return duePhotos.length;

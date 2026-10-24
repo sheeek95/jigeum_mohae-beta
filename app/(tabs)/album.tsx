@@ -8,6 +8,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { friendlyErrorMessage } from '../../src/api/client';
 import { ScreenGradient } from '../../src/components/ScreenGradient';
 import { useScreenCaptureBlock } from '../../src/hooks/useScreenCaptureBlock';
+import { saveToDevice } from '../../src/lib/deviceGallery';
 import { useAppStore } from '../../src/store/useAppStore';
 import type { SavedPhotoItem, SentPhotoItem } from '../../src/store/types';
 import { colors, radius } from '../../src/theme/tokens';
@@ -15,9 +16,14 @@ import { formatCountdown, formatRelative } from '../../src/utils/time';
 
 const STATUS_BADGE: Record<string, { label: string; bg: string; fg: string }> = {
   pending: { label: '저장 승인 대기중', bg: 'rgba(255,214,102,0.14)', fg: colors.yellow },
-  approved: { label: '저장됨 ✓', bg: 'rgba(160,255,217,0.12)', fg: '#A0FFD9' },
   rejected: { label: '저장 거절됨', bg: 'rgba(255,111,129,0.14)', fg: colors.coral },
 };
+
+async function handleSaveToDeviceTap(photoUrl: string) {
+  const ok = await saveToDevice(photoUrl);
+  if (ok) Alert.alert('저장 완료', '휴대폰 사진첩에 저장했어요.');
+  else Alert.alert('저장하지 못했어요', '사진 보관함 접근 권한을 확인한 뒤 다시 시도해주세요.');
+}
 
 function SentCard({
   item,
@@ -55,6 +61,10 @@ function SentCard({
                 <Text style={styles.approveBtnText}>승인</Text>
               </Pressable>
             </View>
+          ) : item.saveStatus === 'approved' ? (
+            <Pressable style={styles.approveBtn} onPress={() => handleSaveToDeviceTap(item.photoUrl)}>
+              <Text style={styles.approveBtnText}>기기에 저장</Text>
+            </Pressable>
           ) : (
             STATUS_BADGE[item.saveStatus] && (
               <View style={[styles.badge, { backgroundColor: STATUS_BADGE[item.saveStatus].bg }]}>
@@ -92,6 +102,12 @@ function SavedCard({ item }: { item: SavedPhotoItem }) {
         <Text style={styles.caption} numberOfLines={1}>
           &ldquo;{item.caption || '(캡션 없음)'}&rdquo;
         </Text>
+        <View style={styles.cardBottom}>
+          <Text style={styles.expire}>{formatCountdown(item.expiresAt)}</Text>
+          <Pressable style={styles.approveBtn} onPress={() => handleSaveToDeviceTap(item.photoUrl)}>
+            <Text style={styles.approveBtnText}>기기에 저장</Text>
+          </Pressable>
+        </View>
       </View>
     </View>
   );
@@ -123,7 +139,7 @@ export default function AlbumScreen() {
     }
   }
 
-  // Re-render periodically so the sent tab's 24h countdown stays live.
+  // Re-render periodically so both tabs' 24h countdowns stay live.
   useEffect(() => {
     const id = setInterval(() => forceTick((n) => n + 1), 60_000);
     return () => clearInterval(id);
