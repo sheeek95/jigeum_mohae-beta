@@ -127,6 +127,65 @@ photosRouter.get('/widget/latest', async (req, res) => {
   });
 });
 
+// Home tab's per-card preview — the latest still-live photo in each of my
+// groups/1:1 friends, whichever direction it went. GROUP kind is simple
+// (Photo.groupId is the one shared group row for every member), but
+// PERSONAL isn't: the sender always writes Photo.groupId as THEIR OWN
+// Group row, so "my friend's latest photo to me" lives under THEIR group
+// id, not mine — same reason GET /groups/:id/photos has to look up the
+// counterpart row. Without this, Home only ever showed photos *I* sent,
+// never ones I received, since it was built from GET /photos/sent alone.
+photosRouter.get('/home', async (req, res) => {
+  const myGroups = await prisma.group.findMany({
+    where: { OR: [{ ownerId: req.userId }, { kind: 'GROUP', members: { some: { userId: req.userId } } }] },
+  });
+
+  const friendIds = myGroups.filter((g) => g.kind === 'PERSONAL' && g.friendUserId).map((g) => g.friendUserId!);
+  const counterparts = friendIds.length
+    ? await prisma.group.findMany({ where: { kind: 'PERSONAL', ownerId: { in: friendIds }, friendUserId: req.userId } })
+    : [];
+  const counterpartIdByFriendId = new Map(counterparts.map((g) => [g.ownerId, g.id]));
+
+  const relevantIdsByMyGroupId = new Map<string, string[]>();
+  const allRelevantIds: string[] = [];
+  for (const g of myGroups) {
+    const ids = [g.id];
+    const counterpartId = g.kind === 'PERSONAL' && g.friendUserId ? counterpartIdByFriendId.get(g.friendUserId) : undefined;
+    if (counterpartId) ids.push(counterpartId);
+    relevantIdsByMyGroupId.set(g.id, ids);
+    allRelevantIds.push(...ids);
+  }
+
+  const photos = allRelevantIds.length
+    ? await prisma.photo.findMany({
+        where: { groupId: { in: allRelevantIds }, expiresAt: { gt: new Date() } },
+        include: { sender: true },
+        orderBy: { createdAt: 'desc' },
+      })
+    : [];
+
+  const items = myGroups.flatMap((g) => {
+    const ids = new Set(relevantIdsByMyGroupId.get(g.id));
+    const latest = photos.find((p) => p.groupId != null && ids.has(p.groupId));
+    if (!latest) return [];
+    return [
+      {
+        groupId: g.id,
+        photoId: latest.id,
+        url: `/uploads/${latest.storageKey}`,
+        caption: latest.caption,
+        senderId: latest.senderId,
+        senderName: latest.sender.displayName,
+        isMine: latest.senderId === req.userId,
+        createdAt: latest.createdAt,
+        expiresAt: latest.expiresAt,
+      },
+    ];
+  });
+
+  res.json({ items });
+});
+
 // "저장한 사진" — album's saved tab. Only APPROVED deliveries: an
 // un-saved received photo lives only in the group story viewer (see
 // GET /groups/:id/photos below), not here, so this list never needs a TTL
