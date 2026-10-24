@@ -1,4 +1,3 @@
-import fs from 'node:fs';
 import path from 'node:path';
 
 import compression from 'compression';
@@ -12,12 +11,10 @@ import { friendsRouter } from './routes/friends.js';
 import { groupsRouter } from './routes/groups.js';
 import { invitesRouter } from './routes/invites.js';
 import { notificationsRouter } from './routes/notifications.js';
-import { photosRouter, UPLOAD_DIR } from './routes/photos.js';
+import { photosRouter } from './routes/photos.js';
 import { pokesRouter } from './routes/pokes.js';
 import { pushRouter } from './routes/push.js';
 import { settingsRouter } from './routes/settings.js';
-
-fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 
 export const app = express();
 
@@ -27,12 +24,11 @@ export const app = express();
 // URL below http:// in production and risk link-preview crawlers rejecting it.
 app.set('trust proxy', 1);
 
-// gzips JSON API responses; already-compressed photo files under /uploads
-// are skipped automatically (compression checks content-type).
+// gzips JSON API responses; photos are served straight from Cloudflare R2
+// now, not through this server, so compression only ever sees JSON here.
 app.use(compression());
 app.use(cors());
 app.use(express.json());
-app.use('/uploads', express.static(UPLOAD_DIR, { maxAge: '1d', immutable: true }));
 app.use('/public', express.static(path.resolve(process.cwd(), 'public'), { maxAge: '7d' }));
 
 app.get('/health', (_req, res) => res.json({ ok: true }));

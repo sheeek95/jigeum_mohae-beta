@@ -5,6 +5,7 @@ import { topCommentsFor } from '../lib/comments.js';
 import { badRequest, forbidden, notFound } from '../lib/errors.js';
 import { notify } from '../lib/notify.js';
 import { prisma } from '../lib/prisma.js';
+import { r2PublicUrl } from '../lib/r2.js';
 import { requireAuth } from '../middleware/auth.js';
 
 export const groupsRouter = Router();
@@ -246,7 +247,7 @@ groupsRouter.get('/:id/photos', async (req, res) => {
   const items = await Promise.all(
     photos.map(async (p) => ({
       photoId: p.id,
-      url: `/uploads/${p.storageKey}`,
+      url: r2PublicUrl(p.storageKey),
       caption: p.caption,
       senderId: p.senderId,
       senderName: p.sender.displayName,

@@ -1,6 +1,4 @@
 import crypto from 'node:crypto';
-import fs from 'node:fs/promises';
-import path from 'node:path';
 
 import { Router } from 'express';
 import multer from 'multer';
@@ -11,9 +9,9 @@ import { topCommentsFor } from '../lib/comments.js';
 import { badRequest, forbidden, notFound } from '../lib/errors.js';
 import { notify } from '../lib/notify.js';
 import { prisma } from '../lib/prisma.js';
+import { deleteFromR2, r2PublicUrl, uploadToR2 } from '../lib/r2.js';
 import { requireAuth } from '../middleware/auth.js';
 
-export const UPLOAD_DIR = path.resolve(process.cwd(), 'uploads');
 const PHOTO_TTL_MS = 24 * 60 * 60 * 1000; // spec: 24시간 후 자동 삭제
 // Photos only ever live 24h (or until an explicit save) and are only ever
 // shown at widget/thumbnail/full-screen-preview size — re-encoding on
@@ -49,7 +47,7 @@ async function saveCompressedPhoto(buffer: Buffer): Promise<string> {
     throw err;
   }
   console.log(`[photos] compressed to ${compressed.length} bytes -> ${filename}`);
-  await fs.writeFile(path.join(UPLOAD_DIR, filename), compressed);
+  await uploadToR2(filename, compressed, 'image/jpeg');
   return filename;
 }
 
@@ -114,7 +112,7 @@ photosRouter.post('/', upload.single('photo'), async (req, res) => {
     }
   }
 
-  res.status(201).json({ photos, url: `/uploads/${filename}` });
+  res.status(201).json({ photos, url: r2PublicUrl(filename) });
 });
 
 photosRouter.get('/widget/latest', async (req, res) => {
@@ -130,7 +128,7 @@ photosRouter.get('/widget/latest', async (req, res) => {
   res.json({
     photo: {
       id: delivery.photo.id,
-      url: `/uploads/${delivery.photo.storageKey}`,
+      url: r2PublicUrl(delivery.photo.storageKey),
       caption: delivery.photo.caption,
       senderName: delivery.photo.sender.displayName,
       // Only surfaced for a real multi-friend GROUP — a PERSONAL target's
@@ -186,7 +184,7 @@ photosRouter.get('/home', async (req, res) => {
       {
         groupId: g.id,
         photoId: latest.id,
-        url: `/uploads/${latest.storageKey}`,
+        url: r2PublicUrl(latest.storageKey),
         caption: latest.caption,
         senderId: latest.senderId,
         senderName: latest.sender.displayName,
@@ -214,7 +212,7 @@ photosRouter.get('/received', async (req, res) => {
     items: deliveries.map((d) => ({
       deliveryId: d.id,
       photoId: d.photoId,
-      url: `/uploads/${d.photo.storageKey}`,
+      url: r2PublicUrl(d.photo.storageKey),
       caption: d.photo.caption,
       senderName: d.photo.sender.displayName,
       // A PERSONAL target's own "group" name is just the sender's name
@@ -238,7 +236,7 @@ photosRouter.get('/sent', async (req, res) => {
   const items = await Promise.all(
     photos.map(async (p) => ({
       photoId: p.id,
-      url: `/uploads/${p.storageKey}`,
+      url: r2PublicUrl(p.storageKey),
       caption: p.caption,
       groupId: p.groupId,
       // PERSONAL groups snapshot the friend's displayName once at creation —
@@ -388,7 +386,9 @@ photosRouter.delete('/:photoId', async (req, res) => {
 });
 
 // Best-effort cleanup used by the TTL job when a Photo has zero remaining
-// (non-expired) deliveries — removes the file from disk too.
+// (non-expired) deliveries — removes the object from R2 too. Best-effort
+// (never throws) so one bad R2 call doesn't abort the rest of a TTL sweep
+// batch, which awaits this sequentially per photo.
 export async function deletePhotoFile(storageKey: string) {
-  await fs.rm(path.join(UPLOAD_DIR, storageKey), { force: true });
+  await deleteFromR2(storageKey).catch((err) => console.error(`[photos] failed to delete R2 object ${storageKey}:`, err));
 }
