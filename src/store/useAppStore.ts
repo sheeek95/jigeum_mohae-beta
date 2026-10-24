@@ -142,7 +142,7 @@ async function enterReady(
   await setStoredSessionToken(token);
   syncIosWidgetCredentials(token, getApiUrl());
   set({
-    me: { id: user.id, displayName: user.displayName, avatarGradient: gradient(user.avatarStart, user.avatarEnd) },
+    me: { id: user.id, displayName: user.displayName, avatarGradient: gradient(user.avatarStart, user.avatarEnd), inviteCode: user.inviteCode },
     authStatus: 'ready',
   });
   get().registerPushToken(); // best-effort, never blocks
@@ -666,7 +666,7 @@ export const useAppStore = create<AppState>()(
 
       updateDisplayName: async (name) => {
         const { user } = await api.patch<{ user: ApiUser }>('/auth/me', { displayName: name });
-        set({ me: { id: user.id, displayName: user.displayName, avatarGradient: gradient(user.avatarStart, user.avatarEnd) } });
+        set({ me: { id: user.id, displayName: user.displayName, avatarGradient: gradient(user.avatarStart, user.avatarEnd), inviteCode: user.inviteCode } });
       },
     }),
     {

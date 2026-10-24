@@ -15,6 +15,12 @@ import { colors, radius } from '../../src/theme/tokens';
 const MAX_GROUPS = 2;
 const MAX_FRIENDS = 20;
 
+// "개발자 설정 → 서버 주소"는 베타 QA용 디버그 도구라 일반 사용자에게는
+// 숨기고, 초대 코드로 지정한 계정에만 보여준다. inviteCode는
+// displayName과 달리 계정 생성 시 한 번 정해져 바뀌지 않는 안정적인
+// 식별자라 여기 쓰기에 적합하다 (닉네임을 바꿔도 계속 보여야 하므로).
+const DEV_SETTINGS_INVITE_CODES = ['vERRP_7m'];
+
 export default function SettingsScreen() {
   const me = useAppStore((s) => s.me);
   const friends = useAppStore((s) => s.friends);
@@ -139,18 +145,22 @@ export default function SettingsScreen() {
             </Text>
           </View>
 
-          <SectionLabel style={styles.sectionLabel}>개발자 설정</SectionLabel>
-          <View style={styles.block}>
-            <Pressable style={[styles.row, { borderBottomWidth: 0 }]} onPress={() => setServerModal(true)}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.t1}>서버 주소</Text>
-                <Text style={styles.t2} numberOfLines={1}>
-                  {apiUrl} · {authStatus === 'ready' ? '연결됨' : authStatus === 'error' ? `연결 실패${authError ? ` (${authError})` : ''}` : '연결 중…'}
-                </Text>
+          {!!me && DEV_SETTINGS_INVITE_CODES.includes(me.inviteCode) && (
+            <>
+              <SectionLabel style={styles.sectionLabel}>개발자 설정</SectionLabel>
+              <View style={styles.block}>
+                <Pressable style={[styles.row, { borderBottomWidth: 0 }]} onPress={() => setServerModal(true)}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.t1}>서버 주소</Text>
+                    <Text style={styles.t2} numberOfLines={1}>
+                      {apiUrl} · {authStatus === 'ready' ? '연결됨' : authStatus === 'error' ? `연결 실패${authError ? ` (${authError})` : ''}` : '연결 중…'}
+                    </Text>
+                  </View>
+                  <Text style={styles.manage}>변경 ›</Text>
+                </Pressable>
               </View>
-              <Text style={styles.manage}>변경 ›</Text>
-            </Pressable>
-          </View>
+            </>
+          )}
         </ScrollView>
 
         <PromptModal

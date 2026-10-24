@@ -151,4 +151,5 @@ export interface Me {
   id: string;
   displayName: string;
   avatarGradient: AvatarGradient;
+  inviteCode: string;
 }

@@ -6,6 +6,7 @@ export interface ApiUser {
   avatarStart: string;
   avatarEnd: string;
   createdAt: string;
+  inviteCode: string;
 }
 
 export interface ApiFriend {
