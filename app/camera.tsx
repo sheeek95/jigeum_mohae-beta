@@ -4,7 +4,7 @@ import { File, Paths } from 'expo-file-system';
 import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { GhostButton, PrimaryButton } from '../src/components/Buttons';
@@ -15,9 +15,12 @@ import { base64ToBytes } from '../src/utils/base64';
 
 // A real (if tiny) 1x1 PNG, used only when there's no camera to shoot with —
 // keeps the rest of the pipeline (preview, upload, server-side image
-// handling) exercising a genuine image file instead of a fake one.
+// handling) exercising a genuine image file instead of a fake one. Colored
+// coral (#FF6F81, see theme/tokens.ts) rather than black specifically so a
+// demo send is visually, unmistakably a placeholder and never looks like a
+// broken/black real photo.
 const PLACEHOLDER_PNG_BASE64 =
-  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=';
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGP4n98IAARgAfCIYmTRAAAAAElFTkSuQmCC';
 
 function writeDemoPhoto(): string {
   const file = new File(Paths.cache, `demo-${Date.now()}.png`);
@@ -53,9 +56,14 @@ export default function CameraScreen() {
     flashScreen();
     try {
       const photo = await cameraRef.current?.takePictureAsync({ quality: 0.6 });
-      setTimeout(() => setPhotoUri(photo?.uri ?? writeDemoPhoto()), 180);
+      if (!photo?.uri) throw new Error('no photo uri');
+      setTimeout(() => setPhotoUri(photo.uri), 180);
     } catch {
-      setTimeout(() => setPhotoUri(writeDemoPhoto()), 180);
+      // Used to silently fall back to writeDemoPhoto() here — a solid-black
+      // 1x1 placeholder — so a real capture failure quietly sent a friend a
+      // black "photo" that looked like a normal successful send. Only the
+      // explicit "데모로 계속하기" link below should ever use the demo photo.
+      Alert.alert('사진 촬영에 실패했어요', '다시 시도해주세요.');
     }
   }
 
