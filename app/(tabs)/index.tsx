@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -10,7 +10,7 @@ import { PulseRing } from '../../src/components/PulseRing';
 import { ScreenGradient } from '../../src/components/ScreenGradient';
 import { useScreenCaptureBlock } from '../../src/hooks/useScreenCaptureBlock';
 import { useAppStore } from '../../src/store/useAppStore';
-import type { Group, SentPhotoItem } from '../../src/store/types';
+import type { Group, HomeLatestPhoto } from '../../src/store/types';
 import { colors, radius } from '../../src/theme/tokens';
 import { formatRelative } from '../../src/utils/time';
 
@@ -32,7 +32,7 @@ const WEEKDAYS = ['일요일', '월요일', '화요일', '수요일', '목요일
 const POLL_MS = 60_000;
 const AVATAR_PEEK = 3;
 
-function GroupCard({ group, latest }: { group: Group; latest: SentPhotoItem | undefined }) {
+function GroupCard({ group, latest }: { group: Group; latest: HomeLatestPhoto | undefined }) {
   const friends = useAppStore((s) => s.friends);
   const members = group.members ?? [];
   const shown = members.slice(0, AVATAR_PEEK);
@@ -68,7 +68,7 @@ function GroupCard({ group, latest }: { group: Group; latest: SentPhotoItem | un
           <Image source={{ uri: latest.photoUrl }} style={StyleSheet.absoluteFill} contentFit="cover" />
           <View style={[StyleSheet.absoluteFill, styles.cardPhotoOverlay]} />
           <View style={styles.cardPhotoCaption}>
-            <Text style={styles.cardPhotoTime}>{formatRelative(latest.sentAt)}</Text>
+            <Text style={styles.cardPhotoTime}>{formatRelative(latest.createdAt)}</Text>
             {!!latest.caption && (
               <Text style={styles.cardPhotoText} numberOfLines={1}>
                 &ldquo;{latest.caption}&rdquo;
@@ -105,10 +105,11 @@ export default function HomeScreen() {
   // never a GROUP one) needs to show up immediately, not just once the user
   // separately creates a named group.
   const groups = useAppStore((s) => s.groups);
-  const sentPhotos = useAppStore((s) => s.sentPhotos);
+  const homeLatestPhotos = useAppStore((s) => s.homeLatestPhotos);
   const refreshGroups = useAppStore((s) => s.refreshGroups);
   const refreshFriends = useAppStore((s) => s.refreshFriends);
   const refreshAlbum = useAppStore((s) => s.refreshAlbum);
+  const refreshHomeLatestPhotos = useAppStore((s) => s.refreshHomeLatestPhotos);
   const refreshWidget = useAppStore((s) => s.refreshWidget);
   const refreshUnreadCount = useAppStore((s) => s.refreshUnreadCount);
   const unreadNotificationCount = useAppStore((s) => s.unreadNotificationCount);
@@ -123,26 +124,18 @@ export default function HomeScreen() {
       refreshGroups();
       refreshFriends();
       refreshAlbum();
+      refreshHomeLatestPhotos();
       refreshWidget();
       refreshUnreadCount();
       const id = setInterval(() => {
         refreshAlbum();
+        refreshHomeLatestPhotos();
         refreshWidget();
         refreshUnreadCount();
       }, POLL_MS);
       return () => clearInterval(id);
-    }, [authStatus, refreshGroups, refreshFriends, refreshAlbum, refreshWidget, refreshUnreadCount])
+    }, [authStatus, refreshGroups, refreshFriends, refreshAlbum, refreshHomeLatestPhotos, refreshWidget, refreshUnreadCount])
   );
-
-  const latestByGroup = useMemo(() => {
-    const map = new Map<string, SentPhotoItem>();
-    const nowMs = Date.now();
-    for (const item of sentPhotos) {
-      if (!item.groupId || item.expiresAt <= nowMs) continue;
-      if (!map.has(item.groupId)) map.set(item.groupId, item);
-    }
-    return map;
-  }, [sentPhotos]);
 
   const hh = now.getHours().toString().padStart(2, '0');
   const mm = now.getMinutes().toString().padStart(2, '0');
@@ -185,7 +178,7 @@ export default function HomeScreen() {
         ) : (
           <ScrollView contentContainerStyle={styles.list}>
             {groups.map((g) => (
-              <GroupCard key={g.id} group={g} latest={latestByGroup.get(g.id)} />
+              <GroupCard key={g.id} group={g} latest={homeLatestPhotos[g.id]} />
             ))}
           </ScrollView>
         )}

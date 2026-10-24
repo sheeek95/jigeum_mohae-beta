@@ -75,6 +75,20 @@ export interface SentPhotoItem {
   comments: CommentPreview[];
 }
 
+// Home tab's per-card preview — the latest still-live photo in a group or
+// 1:1 friend, whichever direction it went (see GET /photos/home). Keyed by
+// groupId in the store, same key the Home cards are already keyed by.
+export interface HomeLatestPhoto {
+  photoId: string;
+  photoUrl: string;
+  caption: string;
+  senderId: string;
+  senderName: string;
+  isMine: boolean;
+  createdAt: number;
+  expiresAt: number;
+}
+
 // A group's still-live (<24h) photo history shown in the story viewer —
 // mixes photos I sent and photos I received in that group/friendship.
 export interface GroupPhoto {

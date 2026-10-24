@@ -19,6 +19,7 @@ import type {
   ApiGroup,
   ApiGroupInvite,
   ApiGroupPhoto,
+  ApiHomeLatestPhoto,
   ApiInvite,
   ApiInvitePreview,
   ApiNotification,
@@ -39,6 +40,7 @@ import type {
   Group,
   GroupInvite,
   GroupPhoto,
+  HomeLatestPhoto,
   InviteLink,
   Me,
   NotificationType,
@@ -74,6 +76,7 @@ interface AppState {
   widgetPhoto: WidgetPhoto | null;
   savedPhotos: SavedPhotoItem[];
   sentPhotos: SentPhotoItem[];
+  homeLatestPhotos: Record<string, HomeLatestPhoto>;
   groupPhotos: Record<string, GroupPhoto[]>;
   commentThreads: Record<string, Comment[]>;
   capturedPhoto: CapturedPhoto | null;
@@ -93,6 +96,7 @@ interface AppState {
   refreshFriends: () => Promise<void>;
   refreshGroups: () => Promise<void>;
   refreshAlbum: () => Promise<void>;
+  refreshHomeLatestPhotos: () => Promise<void>;
   refreshWidget: () => Promise<void>;
   refreshInvite: () => Promise<void>;
   refreshNotifications: () => Promise<void>;
@@ -231,6 +235,19 @@ function mapGroupPhoto(p: ApiGroupPhoto): GroupPhoto {
   };
 }
 
+function mapHomeLatestPhoto(p: ApiHomeLatestPhoto): HomeLatestPhoto {
+  return {
+    photoId: p.photoId,
+    photoUrl: resolveMediaUrl(p.url),
+    caption: p.caption,
+    senderId: p.senderId,
+    senderName: p.senderName,
+    isMine: p.isMine,
+    createdAt: new Date(p.createdAt).getTime(),
+    expiresAt: new Date(p.expiresAt).getTime(),
+  };
+}
+
 function mapComment(c: ApiComment): Comment {
   return {
     id: c.id,
@@ -318,6 +335,7 @@ export const useAppStore = create<AppState>()(
       widgetPhoto: null,
       savedPhotos: [],
       sentPhotos: [],
+      homeLatestPhotos: {},
       groupPhotos: {},
       commentThreads: {},
       capturedPhoto: null,
@@ -458,6 +476,18 @@ export const useAppStore = create<AppState>()(
           savedPhotos: received.map(mapSavedPhoto),
           sentPhotos: sent.flatMap(mapSentPhoto),
         });
+      },
+
+      // Home's per-card preview — separate from refreshAlbum because it needs
+      // the whichever-direction-sent latest photo per group (see GET
+      // /photos/home's comment), not just what I personally sent.
+      refreshHomeLatestPhotos: async () => {
+        const ticket = takeTicket('homeLatestPhotos');
+        const { items } = await api.get<{ items: ApiHomeLatestPhoto[] }>('/photos/home');
+        if (!isCurrentTicket('homeLatestPhotos', ticket)) return;
+        const byGroupId: Record<string, HomeLatestPhoto> = {};
+        for (const item of items) byGroupId[item.groupId] = mapHomeLatestPhoto(item);
+        set({ homeLatestPhotos: byGroupId });
       },
 
       refreshWidget: async () => {

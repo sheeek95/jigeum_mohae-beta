@@ -143,6 +143,20 @@ export interface ApiGroupPhoto {
   comments: ApiCommentPreview[];
 }
 
+// Home tab's per-card preview — the latest still-live photo in a group or
+// 1:1 friend, whichever direction it went (see GET /photos/home).
+export interface ApiHomeLatestPhoto {
+  groupId: string;
+  photoId: string;
+  url: string;
+  caption: string;
+  senderId: string;
+  senderName: string;
+  isMine: boolean;
+  createdAt: string;
+  expiresAt: string;
+}
+
 export type ApiNotificationType =
   | 'FRIEND_ADDED'
   | 'POKE'
