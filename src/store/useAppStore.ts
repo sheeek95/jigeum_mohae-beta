@@ -519,14 +519,19 @@ export const useAppStore = create<AppState>()(
         set({ inviteLink: { code: invite.code } });
       },
 
-      // Best-effort: a missing/unavailable installed version (old binary
-      // that doesn't even have expo-application's native module yet — see
-      // src/lib/appVersion.ts) is treated as "definitely needs an update".
+      // Best-effort. A null installed version means this exact binary
+      // predates expo-application itself (true for every install that
+      // exists the moment this feature first ships — see appVersion.ts) —
+      // stays quiet rather than flagging it, since there's no newer build
+      // yet for it to point to anyway. Once a build that has
+      // expo-application is out, "null" only ever means a genuinely old
+      // binary again, at which point updating actually helps.
       checkAppUpdate: async () => {
         try {
           const { minVersion } = await api.get<{ minVersion: string }>('/app-version');
           const installed = getInstalledAppVersion();
-          set({ needsAppUpdate: !installed || !isVersionAtLeast(installed, minVersion) });
+          if (!installed) return;
+          set({ needsAppUpdate: !isVersionAtLeast(installed, minVersion) });
         } catch {
           // no connectivity or server hiccup — leave whatever we last knew
         }
