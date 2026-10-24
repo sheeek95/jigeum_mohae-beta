@@ -25,6 +25,12 @@ export async function sendPushToUser(userId: string, payload: PushPayload) {
       body: payload.body,
       data: payload.data ?? {},
       sound: 'default',
+      // Lets this same alert push also wake the client's background
+      // notification task (see src/widgets/backgroundNotificationTask.ts)
+      // on iOS to refresh the home-screen widget — without it, iOS only
+      // invokes background handlers for a silent (no alert) push. Ignored
+      // on Android, where the background task already fires on any push.
+      _contentAvailable: true,
     }));
 
     const res = await fetch(EXPO_PUSH_URL, {
