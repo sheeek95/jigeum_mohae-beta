@@ -39,7 +39,13 @@
     "plugins": [
       "expo-router",
       "expo-updates",
-      "expo-notifications",
+      [
+        "expo-notifications",
+        {
+          "enableBackgroundRemoteNotifications": true
+        }
+      ],
+      "expo-task-manager",
       [
         "@react-native-seoul/kakao-login",
         {
