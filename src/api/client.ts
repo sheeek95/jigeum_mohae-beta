@@ -8,6 +8,22 @@ export class ApiError extends Error {
   }
 }
 
+const HANGUL_RE = /[가-힣]/;
+
+// Screens show `err.message` straight to the user on failure — fine for an
+// ApiError (the server's own Korean message, e.g. "그룹 정원이 가득 찼어요")
+// or our own client-authored ones (e.g. the request-timeout message below),
+// but a raw library/runtime error (a TypeError, a third-party package's
+// English Error.message like React Native's "Unsupported FormDataPart
+// implementation") would otherwise leak straight to the user as unreadable
+// English. Every message we author ourselves is Korean, so "does it contain
+// Hangul" cleanly tells the two apart without having to special-case every
+// error type individually.
+export function friendlyErrorMessage(err: unknown, fallback: string): string {
+  if (err instanceof Error && HANGUL_RE.test(err.message)) return err.message;
+  return fallback;
+}
+
 let authToken: string | null = null;
 
 export function setAuthToken(token: string | null) {

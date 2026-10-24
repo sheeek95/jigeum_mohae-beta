@@ -5,6 +5,7 @@ import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { friendlyErrorMessage } from '../src/api/client';
 import { PrimaryButton } from '../src/components/Buttons';
 import { Checkbox } from '../src/components/Checkbox';
 import { SectionLabel } from '../src/components/SectionLabel';
@@ -49,7 +50,7 @@ export default function ShareScreen() {
         router.replace('/(tabs)');
       }, 1200);
     } catch (err) {
-      setError(err instanceof Error ? err.message : '공유에 실패했어요');
+      setError(friendlyErrorMessage(err, '공유에 실패했어요'));
       setSharing(false);
     }
   }

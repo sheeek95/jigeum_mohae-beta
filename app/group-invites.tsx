@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { friendlyErrorMessage } from '../src/api/client';
 import { ScreenGradient } from '../src/components/ScreenGradient';
 import { useAppStore } from '../src/store/useAppStore';
 import type { GroupInvite } from '../src/store/types';
@@ -24,7 +25,7 @@ export default function GroupInvitesScreen() {
     if (authStatus !== 'ready') return;
     setLoadError(null);
     refreshGroupInvites()
-      .catch((err) => setLoadError(err instanceof Error ? err.message : '초대를 불러오지 못했어요'))
+      .catch((err) => setLoadError(friendlyErrorMessage(err, '초대를 불러오지 못했어요')))
       .finally(() => setLoading(false));
   }, [authStatus, refreshGroupInvites]);
 
@@ -37,7 +38,7 @@ export default function GroupInvitesScreen() {
     try {
       await respondToGroupInvite(invite.id, approve);
     } catch (err) {
-      Alert.alert('처리하지 못했어요', err instanceof Error ? err.message : undefined);
+      Alert.alert('처리하지 못했어요', friendlyErrorMessage(err, '잠시 후 다시 시도해주세요'));
     } finally {
       setRespondingId(null);
     }

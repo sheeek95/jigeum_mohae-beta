@@ -5,7 +5,7 @@ import { Platform } from 'react-native';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
-import { api, ApiError, resolveMediaUrl, setAuthToken } from '../api/client';
+import { api, ApiError, friendlyErrorMessage, resolveMediaUrl, setAuthToken } from '../api/client';
 import { getOrCreateDeviceId } from '../api/identity';
 import { clearStoredSessionToken, getStoredSessionToken, setStoredSessionToken } from '../api/session';
 import { getApiUrl, loadStoredApiUrl, setApiUrl } from '../api/urlConfig';
@@ -393,7 +393,7 @@ export const useAppStore = create<AppState>()(
               return;
             }
           } catch (err) {
-            set({ authStatus: 'error', authError: err instanceof Error ? err.message : '연결에 실패했어요' });
+            set({ authStatus: 'error', authError: friendlyErrorMessage(err, '연결에 실패했어요') });
             bootstrapPromise = null; // allow a retry
           }
         })();

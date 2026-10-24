@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { friendlyErrorMessage } from '../src/api/client';
 import { ScreenGradient } from '../src/components/ScreenGradient';
 import { useAppStore } from '../src/store/useAppStore';
 import type { AppNotification, NotificationType } from '../src/store/types';
@@ -61,7 +62,7 @@ export default function NotificationsScreen() {
     setLoadError(null);
     refreshNotifications()
       .then(() => markNotificationsRead())
-      .catch((err) => setLoadError(err instanceof Error ? err.message : '알림을 불러오지 못했어요'))
+      .catch((err) => setLoadError(friendlyErrorMessage(err, '알림을 불러오지 못했어요')))
       .finally(() => setLoading(false));
   }, [authStatus, refreshNotifications, markNotificationsRead]);
 

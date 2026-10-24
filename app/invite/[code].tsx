@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { friendlyErrorMessage } from '../../src/api/client';
 import { Avatar } from '../../src/components/Avatar';
 import { CoralButton, GhostButton } from '../../src/components/Buttons';
 import { Checkbox } from '../../src/components/Checkbox';
@@ -39,7 +40,7 @@ export default function InviteAcceptScreen() {
     if (!code || authStatus !== 'ready') return;
     setLoading(true);
     loadInviteByCode(code)
-      .catch((err) => setError(err instanceof Error ? err.message : '초대 링크를 불러올 수 없어요'))
+      .catch((err) => setError(friendlyErrorMessage(err, '초대 링크를 불러올 수 없어요')))
       .finally(() => setLoading(false));
     return () => clearPendingInvite();
   }, [code, authStatus, loadInviteByCode, clearPendingInvite]);
@@ -58,7 +59,7 @@ export default function InviteAcceptScreen() {
       await acceptInvite(code, selectedGroupId ? [selectedGroupId] : undefined);
       router.replace('/(tabs)/poke');
     } catch (err) {
-      setError(err instanceof Error ? err.message : '수락에 실패했어요');
+      setError(friendlyErrorMessage(err, '수락에 실패했어요'));
     } finally {
       setBusy(false);
     }

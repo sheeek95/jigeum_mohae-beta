@@ -3,6 +3,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { friendlyErrorMessage } from '../../src/api/client';
 import { Avatar } from '../../src/components/Avatar';
 import { PromptModal } from '../../src/components/PromptModal';
 import { ScreenGradient } from '../../src/components/ScreenGradient';
@@ -47,7 +48,7 @@ export default function SettingsScreen() {
     try {
       await addGroup(name);
     } catch (err) {
-      Alert.alert('그룹을 만들지 못했어요', err instanceof Error ? err.message : undefined);
+      Alert.alert('그룹을 만들지 못했어요', friendlyErrorMessage(err, '잠시 후 다시 시도해주세요'));
     }
   }
 

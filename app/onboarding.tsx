@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { friendlyErrorMessage } from '../src/api/client';
 import { PrimaryButton } from '../src/components/Buttons';
 import { PulseRing } from '../src/components/PulseRing';
 import { useAppStore } from '../src/store/useAppStore';
@@ -92,7 +93,7 @@ export default function Onboarding() {
       completeOnboarding();
       router.replace('/(tabs)');
     } catch (err) {
-      setLoginError(err instanceof Error ? err.message : '카카오 로그인에 실패했어요');
+      setLoginError(friendlyErrorMessage(err, '카카오 로그인에 실패했어요'));
     } finally {
       setLoggingIn(false);
     }

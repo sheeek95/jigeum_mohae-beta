@@ -16,6 +16,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { friendlyErrorMessage } from '../../src/api/client';
 import { useAppStore } from '../../src/store/useAppStore';
 import type { AvatarGradient, Comment, GroupPhoto } from '../../src/store/types';
 import { colors, radius } from '../../src/theme/tokens';
@@ -106,7 +107,7 @@ export default function StoryScreen() {
     setLoading(true);
     setLoadError(null);
     fetchGroupPhotos(groupId)
-      .catch((err) => setLoadError(err instanceof Error ? err.message : '사진을 불러오지 못했어요'))
+      .catch((err) => setLoadError(friendlyErrorMessage(err, '사진을 불러오지 못했어요')))
       .finally(() => setLoading(false));
   }, [groupId, fetchGroupPhotos]);
 
@@ -181,7 +182,7 @@ export default function StoryScreen() {
       await requestSave(photo.photoId);
       await fetchGroupPhotos(groupId ?? '');
     } catch (err) {
-      Alert.alert('저장 요청을 보내지 못했어요', err instanceof Error ? err.message : undefined);
+      Alert.alert('저장 요청을 보내지 못했어요', friendlyErrorMessage(err, '잠시 후 다시 시도해주세요'));
     }
   }
 
@@ -193,7 +194,7 @@ export default function StoryScreen() {
       await fetchGroupPhotos(groupId ?? '');
       setCompactInput('');
     } catch (err) {
-      Alert.alert('반응을 남기지 못했어요', err instanceof Error ? err.message : undefined);
+      Alert.alert('반응을 남기지 못했어요', friendlyErrorMessage(err, '잠시 후 다시 시도해주세요'));
     }
   }
 
@@ -226,7 +227,7 @@ export default function StoryScreen() {
       setCommentInput('');
       setReplyTarget(null);
     } catch (err) {
-      Alert.alert('댓글을 보내지 못했어요', err instanceof Error ? err.message : undefined);
+      Alert.alert('댓글을 보내지 못했어요', friendlyErrorMessage(err, '잠시 후 다시 시도해주세요'));
     } finally {
       setSending(false);
     }

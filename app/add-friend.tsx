@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, Share, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { friendlyErrorMessage } from '../src/api/client';
 import { PrimaryButton } from '../src/components/Buttons';
 import { ScreenGradient } from '../src/components/ScreenGradient';
 import { useAppStore } from '../src/store/useAppStore';
@@ -38,7 +39,7 @@ export default function AddFriendScreen() {
     let cancelled = false;
     setLoadError(null);
     refreshInvite().catch((err) => {
-      if (!cancelled) setLoadError(err instanceof Error ? err.message : '초대 링크를 불러오지 못했어요');
+      if (!cancelled) setLoadError(friendlyErrorMessage(err, '초대 링크를 불러오지 못했어요'));
     });
     return () => {
       cancelled = true;

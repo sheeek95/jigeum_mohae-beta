@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { friendlyErrorMessage } from '../../src/api/client';
 import { ScreenGradient } from '../../src/components/ScreenGradient';
 import { useScreenCaptureBlock } from '../../src/hooks/useScreenCaptureBlock';
 import { useAppStore } from '../../src/store/useAppStore';
@@ -118,7 +119,7 @@ export default function AlbumScreen() {
     try {
       await resolveSave(photoId, targetUserId, approve);
     } catch (err) {
-      Alert.alert('처리하지 못했어요', err instanceof Error ? err.message : undefined);
+      Alert.alert('처리하지 못했어요', friendlyErrorMessage(err, '잠시 후 다시 시도해주세요'));
     }
   }
 

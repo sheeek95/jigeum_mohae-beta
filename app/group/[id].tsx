@@ -4,6 +4,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { friendlyErrorMessage } from '../../src/api/client';
 import { Avatar } from '../../src/components/Avatar';
 import { ScreenGradient } from '../../src/components/ScreenGradient';
 import { SectionLabel } from '../../src/components/SectionLabel';
@@ -54,7 +55,7 @@ export default function GroupManageScreen() {
     try {
       await inviteGroupMember(groupId, friendId);
     } catch (err) {
-      Alert.alert('초대하지 못했어요', err instanceof Error ? err.message : undefined);
+      Alert.alert('초대하지 못했어요', friendlyErrorMessage(err, '잠시 후 다시 시도해주세요'));
     } finally {
       setInvitingId(null);
     }
